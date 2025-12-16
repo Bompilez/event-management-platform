@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin – Arrangementer</title>
+  <link rel="stylesheet" href="/web/admin/admin.css">
+
+
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <h1>Arrangementer</h1>
+        <div class="sub">Behandle innsendte arrangementer, publiser og arkiver.</div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="newBtn">+ Nytt arrangement</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button class="tab is-active" data-status="pending">Ikke godkjent</button>
+      <button class="tab" data-status="published">Godkjent</button>
+      <button class="tab" data-status="archived">Ferdige</button>
+    </div>
+
+    <div class="list" id="list"></div>
+  </div>
+
+  <!-- Overlay / Panel -->
+  <div class="overlay" id="overlay" aria-hidden="true">
+    <div class="panel" role="dialog" aria-modal="true" aria-label="Rediger arrangement">
+      <div class="panel-head">
+        <h2 class="panel-title" id="panelTitle">Rediger arrangement</h2>
+        <button class="xbtn" id="closeBtn" aria-label="Lukk">✕</button>
+      </div>
+
+      <div class="panel-body">
+        <div class="field full">
+          <label for="f_title">Tittel</label>
+          <input id="f_title" type="text" />
+        </div>
+
+        <div class="field">
+          <label for="f_status">Status</label>
+          <select id="f_status">
+            <option value="pending">Ikke godkjent</option>
+            <option value="published">Godkjent (publisert)</option>
+            <option value="archived">Ferdige (arkiv)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="f_slug">Slug</label>
+          <input id="f_slug" type="text" placeholder="apen-dag-pa-campus" />
+        </div>
+
+        <div class="field full">
+          <label for="f_summary">Oppsummering</label>
+          <textarea id="f_summary"></textarea>
+        </div>
+
+        <div class="field full">
+          <label for="f_content">Brødtekst</label>
+          <textarea id="f_content"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="f_startAt">Dato (startAt)</label>
+          <input id="f_startAt" type="datetime-local" />
+        </div>
+
+        <div class="field">
+          <label for="f_location">Sted</label>
+          <input id="f_location" type="text" />
+        </div>
+
+        <div class="field">
+          <label for="f_startTime">Start kl.</label>
+          <input id="f_startTime" type="text" placeholder="12:00" />
+        </div>
+
+        <div class="field">
+          <label for="f_endTime">Slutt kl.</label>
+          <input id="f_endTime" type="text" placeholder="14:00" />
+        </div>
+
+        <div class="field">
+          <label for="f_room">Rom</label>
+          <input id="f_room" type="text" placeholder="A213" />
+        </div>
+
+        <div class="field">
+          <label for="f_floor">Etasje</label>
+          <input id="f_floor" type="text" placeholder="2. etasje" />
+        </div>
+
+        <div class="field">
+          <label for="f_orgType">Arrangørtype</label>
+          <select id="f_orgType">
+            <option value="internal">Campus</option>
+            <option value="external">Ekstern</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="f_orgName">Arrangørnavn</label>
+          <input id="f_orgName" type="text" />
+        </div>
+
+        <div class="field full">
+          <label for="f_imageUrl">Bilde URL</label>
+          <input id="f_imageUrl" type="url" />
+        </div>
+
+        <div class="field">
+          <label for="f_submittedBy">Avsender (navn)</label>
+          <input id="f_submittedBy" type="text" placeholder="(fra skjema)" />
+        </div>
+
+        <div class="field">
+          <label for="f_submittedEmail">Avsender (epost)</label>
+          <input id="f_submittedEmail" type="email" placeholder="(fra skjema)" />
+        </div>
+
+        <div class="field full">
+          <label for="f_notes">Interne notater</label>
+          <textarea id="f_notes" placeholder="Kun for admin"></textarea>
+        </div>
+      </div>
+
+      <div class="panel-foot">
+        <button class="btn danger" id="deleteBtn">Slett</button>
+
+        <div class="right-actions">
+          <button class="btn" id="archiveBtn">Flytt til ferdige</button>
+          <button class="btn" id="publishBtn">Godkjenn / publiser</button>
+          <button class="btn primary" id="saveBtn">Lagre</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/web/admin/admin.js"></script>
+</body>
+</html>

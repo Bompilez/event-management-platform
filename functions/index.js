@@ -57,9 +57,23 @@ exports.events = onRequest(async (req, res) => {
   try {
     setCors(res);
 
-    const snap = await db
+    // ?type=internal | external | all (eller ingenting)
+    const type = (req.query.type || "all").toString().trim().toLowerCase();
+    const validTypes = new Set(["all", "internal", "external"]);
+
+    if (!validTypes.has(type)) {
+      return res.status(400).json({ error: "Invalid type. Use all|internal|external" });
+    }
+
+    let q = db
       .collection("events")
-      .where("status", "==", "published")
+      .where("status", "==", "published");
+
+    if (type !== "all") {
+      q = q.where("organizerType", "==", type);
+    }
+
+    const snap = await q
       .orderBy("startAt", "asc")
       .limit(50)
       .get();
@@ -72,11 +86,13 @@ exports.events = onRequest(async (req, res) => {
         title: data.title ?? "",
         slug: data.slug ?? "",
         summary: data.summary ?? "",
-        content: data.content ?? "",
         startAt: data.startAt?.toDate?.().toISOString?.() ?? null,
         location: data.location ?? "",
         organizerType: data.organizerType ?? "",
         organizerName: data.organizerName ?? "",
+        imageUrl: data.imageUrl ?? null,
+        startTime: data.startTime ?? "",
+        endTime: data.endTime ?? "",
       };
     });
 
@@ -86,6 +102,7 @@ exports.events = onRequest(async (req, res) => {
     return res.status(500).json({ error: "Failed to load events" });
   }
 });
+
 
 exports.event = onRequest(async (req, res) => {
   // CORS preflight
@@ -123,33 +140,44 @@ exports.event = onRequest(async (req, res) => {
     const data = doc.data();
 
     return res.json({
-    id: doc.id,
-    title: data.title ?? "",
-    slug: data.slug ?? "",
-    summary: data.summary ?? "",
-    content: data.content ?? "",
-    startAt: data.startAt?.toDate?.().toISOString?.() ?? null,
-    location: data.location ?? "",
-    organizerType: data.organizerType ?? "",
-    organizerName: data.organizerName ?? "",
-    status: data.status ?? "",
-    imageUrl: data.imageUrl ?? null,
-    startTime: data.startTime ?? "",
-    endTime: data.endTime ?? "",
-    room: data.room ?? "",
-    floor: data.floor ?? "",
-    price: typeof data.price === "number" ? data.price : null,
-    capacity: typeof data.capacity === "number" ? data.capacity : null,
-    ctaText: data.ctaText ?? "",
-    ctaUrl: data.ctaUrl ?? "",
-    registrationDeadline: data.registrationDeadline?.toDate?.().toISOString?.() ?? null,
-    organizerUrl: data.organizerUrl ?? "",
-    calendarEnabled: data.calendarEnabled === true,
-    shareEnabled: data.shareEnabled === true,
-    program: Array.isArray(data.program) ? data.program : [],
-    createdAt: data.createdAt?.toDate?.().toISOString?.() ?? null,
-    updatedAt: data.updatedAt?.toDate?.().toISOString?.() ?? null,
-    });
+        id: doc.id,
+        title: data.title ?? "",
+        slug: data.slug ?? "",
+        summary: data.summary ?? "",
+        content: data.content ?? "",
+        startAt: data.startAt?.toDate?.().toISOString?.() ?? null,
+        status: data.status ?? "",
+
+        imageUrl: data.imageUrl ?? null,
+
+        startTime: data.startTime ?? "",
+        endTime: data.endTime ?? "",
+
+        location: data.location ?? "",
+        room: data.room ?? "",
+        floor: data.floor ?? "",
+
+        organizerType: data.organizerType ?? "",
+        organizerName: data.organizerName ?? "",
+        organizerUrl: data.organizerUrl ?? "",
+
+        price: typeof data.price === "number" ? data.price : null,
+        capacity: typeof data.capacity === "number" ? data.capacity : null,
+
+        ctaText: data.ctaText ?? "",
+        ctaUrl: data.ctaUrl ?? "",
+
+        registrationDeadline: data.registrationDeadline?.toDate?.().toISOString?.() ?? null,
+
+        calendarEnabled: data.calendarEnabled === true,
+        shareEnabled: data.shareEnabled === true,
+
+        program: Array.isArray(data.program) ? data.program : [],
+
+        createdAt: data.createdAt?.toDate?.().toISOString?.() ?? null,
+        updatedAt: data.updatedAt?.toDate?.().toISOString?.() ?? null,
+        });
+
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to load event" });
