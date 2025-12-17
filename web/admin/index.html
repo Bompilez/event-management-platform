@@ -3,147 +3,248 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin – Arrangementer</title>
-  <link rel="stylesheet" href="/web/admin/admin.css">
-
-
+  <title>Admin – Arrangement</title>
+  <link rel="stylesheet" href="./admin.css" />
 </head>
-
 <body>
-  <div class="wrap">
-    <div class="topbar">
-      <div>
-        <h1>Arrangementer</h1>
-        <div class="sub">Behandle innsendte arrangementer, publiser og arkiver.</div>
+
+  <main class="page">
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <img>
+            </div>
+            <div class="settings-container">
+                
+            </div>
+        </div>
+    </div>
+    <header class="topbar">
+      <h1>Arrangementer</h1>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" id="btnNew">+ Nytt arrangement</button>
       </div>
-      <div class="actions">
-        <button class="btn primary" id="newBtn">+ Nytt arrangement</button>
+    </header>
+
+    <section class="table-wrap">
+      <div class="table-head">
+        <div class="filters">
+          <button class="chip is-active" data-filter="all">Alle</button>
+          <button class="chip" data-filter="draft">Til vurdering</button>
+          <button class="chip" data-filter="published">Publisert</button>
+          <button class="chip" data-filter="archived">Ferdige</button>
+        </div>
+
+        <div class="search">
+          <input id="search" class="input" placeholder="Søk på tittel / arrangør / sted…" />
+        </div>
+      </div>
+
+      <div id="list" class="list"></div>
+
+      <div id="emptyState" class="empty" hidden>
+        <p><strong>Ingen arrangementer</strong></p>
+        <p>Det er ingen treff for filteret ditt akkurat nå.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL -->
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-label="Rediger arrangement">
+      <div class="modal-header">
+        <div class="modal-title">
+          <h2 id="modalTitle">Rediger arrangement</h2>
+          <p class="muted" id="modalSub">Oppdater innhold og detaljer</p>
+        </div>
+
+        <button class="icon-btn" data-close="1" aria-label="Lukk">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <form id="form" class="form">
+
+          <div class="form-grid">
+            <!-- VENSTRE: INNHOLD -->
+            <div class="form-left">
+              <div class="field">
+                <label for="title">Tittel</label>
+                <input id="title" class="input" autocomplete="off" />
+              </div>
+
+              <div class="grid2">
+                <div class="field">
+                  <label for="slug">Slug / URL</label>
+                  <input id="slug" class="input" autocomplete="off" />
+                  <small class="hint">Eks: <code>apen-dag-pa-campus</code></small>
+                </div>
+
+                <div class="field">
+                  <label for="organizerName">Arrangørnavn</label>
+                  <input id="organizerName" class="input" autocomplete="off" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="summary">Oppsummering</label>
+                <textarea id="summary" class="textarea" rows="3"></textarea>
+              </div>
+
+              <div class="field">
+                <label for="content">Brødtekst</label>
+                <textarea id="content" class="textarea" rows="9"></textarea>
+                <small class="hint">Tips: bruk linjeskift. Vi rendrer trygt med <code>&lt;br&gt;</code>.</small>
+              </div>
+
+              <div class="program">
+                <div class="program-head">
+                  <h3>Program</h3>
+                  <button type="button" class="btn" id="btnAddProgram">Legg til punkt</button>
+                </div>
+
+                <div id="programRows" class="program-rows"></div>
+
+                <template id="tplProgramRow">
+                  <div class="program-row">
+                    <input class="input program-time" placeholder="12:00" />
+                    <input class="input program-text" placeholder="Velkommen" />
+                    <button type="button" class="icon-btn danger program-remove" title="Fjern">✕</button>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- HØYRE: DETALJER -->
+            <aside class="form-right">
+              <div class="card">
+                <div class="card-title">Detaljer</div>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label for="status">Status</label>
+                    <select id="status" class="select">
+                      <option value="draft">Ikke publisert</option>
+                      <option value="published">Publisert</option>
+                      <option value="archived">Ferdig</option>
+                    </select>
+                  </div>
+
+                  <div class="field">
+                    <label for="organizerType">Kategori</label>
+                    <select id="organizerType" class="select">
+                      <option value="internal">Campus</option>
+                      <option value="external">Ekstern</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="startAt">Dato</label>
+                  <input id="startAt" type="datetime-local" class="input" />
+                </div>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label for="startTime">Fra</label>
+                    <input id="startTime" class="input" placeholder="12:00" />
+                  </div>
+                  <div class="field">
+                    <label for="endTime">Til</label>
+                    <input id="endTime" class="input" placeholder="14:00" />
+                  </div>
+                </div>
+
+                <div class="grid3">
+                  <div class="field">
+                    <label for="location">Sted</label>
+                    <input id="location" class="input" />
+                  </div>
+                  <div class="field">
+                    <label for="room">Rom</label>
+                    <input id="room" class="input" />
+                  </div>
+                  <div class="field">
+                    <label for="floor">Etasje</label>
+                    <input id="floor" class="input" />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="imageUrl">Bilde-URL</label>
+                  <input id="imageUrl" class="input" placeholder="https://…" />
+                  <div class="img-preview">
+                    <img id="imagePreview" alt="" />
+                  </div>
+                </div>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label for="price">Pris</label>
+                    <input id="price" type="number" class="input" placeholder="0" />
+                  </div>
+                  <div class="field">
+                    <label for="capacity">Kapasitet</label>
+                    <input id="capacity" type="number" class="input" placeholder="25" />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="registrationDeadline">Påmeldingsfrist</label>
+                  <input id="registrationDeadline" type="datetime-local" class="input" />
+                </div>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label for="ctaText">CTA-tekst</label>
+                    <input id="ctaText" class="input" placeholder="Meld deg på" />
+                  </div>
+                  <div class="field">
+                    <label for="ctaUrl">CTA-lenke</label>
+                    <input id="ctaUrl" class="input" placeholder="https://…" />
+                  </div>
+                </div>
+
+                <div class="grid2">
+                  <div class="field">
+                    <label for="organizerUrl">Arrangør-URL</label>
+                    <input id="organizerUrl" class="input" placeholder="https://…" />
+                  </div>
+
+                  <div class="field inline">
+                    <label class="inline">
+                      <input type="checkbox" id="calendarEnabled" />
+                      <span>Kalender</span>
+                    </label>
+
+                    <label class="inline">
+                      <input type="checkbox" id="shareEnabled" />
+                      <span>Deling</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="timestamps">
+                  <div><span class="muted">Opprettet:</span> <span id="createdAtText">—</span></div>
+                  <div><span class="muted">Oppdatert:</span> <span id="updatedAtText">—</span></div>
+                </div>
+              </div>
+            </aside>
+          </div>
+
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn danger" id="btnDelete" type="button">Slett</button>
+        <div class="spacer"></div>
+        <button class="btn" data-close="1" type="button">Avbryt</button>
+        <button class="btn btn-primary" id="btnSave" type="button">Lagre</button>
       </div>
     </div>
-
-    <div class="tabs" id="tabs">
-      <button class="tab is-active" data-status="pending">Ikke godkjent</button>
-      <button class="tab" data-status="published">Godkjent</button>
-      <button class="tab" data-status="archived">Ferdige</button>
-    </div>
-
-    <div class="list" id="list"></div>
   </div>
 
-  <!-- Overlay / Panel -->
-  <div class="overlay" id="overlay" aria-hidden="true">
-    <div class="panel" role="dialog" aria-modal="true" aria-label="Rediger arrangement">
-      <div class="panel-head">
-        <h2 class="panel-title" id="panelTitle">Rediger arrangement</h2>
-        <button class="xbtn" id="closeBtn" aria-label="Lukk">✕</button>
-      </div>
-
-      <div class="panel-body">
-        <div class="field full">
-          <label for="f_title">Tittel</label>
-          <input id="f_title" type="text" />
-        </div>
-
-        <div class="field">
-          <label for="f_status">Status</label>
-          <select id="f_status">
-            <option value="pending">Ikke godkjent</option>
-            <option value="published">Godkjent (publisert)</option>
-            <option value="archived">Ferdige (arkiv)</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="f_slug">Slug</label>
-          <input id="f_slug" type="text" placeholder="apen-dag-pa-campus" />
-        </div>
-
-        <div class="field full">
-          <label for="f_summary">Oppsummering</label>
-          <textarea id="f_summary"></textarea>
-        </div>
-
-        <div class="field full">
-          <label for="f_content">Brødtekst</label>
-          <textarea id="f_content"></textarea>
-        </div>
-
-        <div class="field">
-          <label for="f_startAt">Dato (startAt)</label>
-          <input id="f_startAt" type="datetime-local" />
-        </div>
-
-        <div class="field">
-          <label for="f_location">Sted</label>
-          <input id="f_location" type="text" />
-        </div>
-
-        <div class="field">
-          <label for="f_startTime">Start kl.</label>
-          <input id="f_startTime" type="text" placeholder="12:00" />
-        </div>
-
-        <div class="field">
-          <label for="f_endTime">Slutt kl.</label>
-          <input id="f_endTime" type="text" placeholder="14:00" />
-        </div>
-
-        <div class="field">
-          <label for="f_room">Rom</label>
-          <input id="f_room" type="text" placeholder="A213" />
-        </div>
-
-        <div class="field">
-          <label for="f_floor">Etasje</label>
-          <input id="f_floor" type="text" placeholder="2. etasje" />
-        </div>
-
-        <div class="field">
-          <label for="f_orgType">Arrangørtype</label>
-          <select id="f_orgType">
-            <option value="internal">Campus</option>
-            <option value="external">Ekstern</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="f_orgName">Arrangørnavn</label>
-          <input id="f_orgName" type="text" />
-        </div>
-
-        <div class="field full">
-          <label for="f_imageUrl">Bilde URL</label>
-          <input id="f_imageUrl" type="url" />
-        </div>
-
-        <div class="field">
-          <label for="f_submittedBy">Avsender (navn)</label>
-          <input id="f_submittedBy" type="text" placeholder="(fra skjema)" />
-        </div>
-
-        <div class="field">
-          <label for="f_submittedEmail">Avsender (epost)</label>
-          <input id="f_submittedEmail" type="email" placeholder="(fra skjema)" />
-        </div>
-
-        <div class="field full">
-          <label for="f_notes">Interne notater</label>
-          <textarea id="f_notes" placeholder="Kun for admin"></textarea>
-        </div>
-      </div>
-
-      <div class="panel-foot">
-        <button class="btn danger" id="deleteBtn">Slett</button>
-
-        <div class="right-actions">
-          <button class="btn" id="archiveBtn">Flytt til ferdige</button>
-          <button class="btn" id="publishBtn">Godkjenn / publiser</button>
-          <button class="btn primary" id="saveBtn">Lagre</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="/web/admin/admin.js"></script>
+  <script src="./admin.js"></script>
 </body>
 </html>
