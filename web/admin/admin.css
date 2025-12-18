@@ -44,6 +44,14 @@ body {
 .topbar h1 { margin: 0; font-size: 22px; }
 .topbar-actions { display: flex; gap: 10px; }
 
+.header-content {
+    margin-bottom: 60px;
+}
+
+.logo img {
+    max-width: 200px;
+}
+
 .table-wrap {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -89,6 +97,15 @@ body {
 }
 .input:focus, .textarea:focus, .select:focus { box-shadow: var(--focus); border-color: #cbd5e1; }
 .textarea { resize: vertical; }
+
+.categories {
+    margin: 15px 10px 0px 10px;
+    display: grid;
+    opacity: 0.5;
+    grid-template-columns: 1.5fr 1fr 1fr .5fr;
+    padding: 10px;
+    gap: 12px;
+}
 
 .list { padding: 10px; }
 .row {
