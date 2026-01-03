@@ -201,7 +201,7 @@ body {
 .modal-panel {
   position: relative;
   margin: 32px auto;
-  width: min(1180px, calc(100% - 24px)); /* ✅ større */
+  width: min(1180px, calc(100% - 24px)); 
   background: var(--panel);
   border-radius: 18px;
   border: 1px solid var(--border);
@@ -209,7 +209,7 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 64px); /* ✅ scroll inni */
+  max-height: calc(100vh - 64px); 
 }
 
 .modal-header {
@@ -226,7 +226,7 @@ body {
 
 .modal-body {
   padding: 16px;
-  overflow: auto; /* ✅ scroll */
+  overflow: auto;
 }
 
 .modal-footer {
@@ -274,7 +274,7 @@ label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px
   padding: 14px;
   background: #fff;
   position: sticky;
-  top: 0; /* så detaljer følger litt med */
+  top: 0; 
 }
 .card-title {
   font-weight: 700;
@@ -332,16 +332,16 @@ label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px
 
 /* ===== Row status colors ===== */
 .row.is-draft {
-  background: #fff7cc;          /* lys gul */
+  background: #fff7cc; 
   border-color: #f4e08a;
 }
 
 .row.is-published {
-  background: #eaf8ee;          /* lys grønn */
+  background: #eaf8ee; 
   border-color: #bfe9cc;
 }
 
 .row.is-archived {
-  background: #eef2f7;          /* rolig "ferdig"-farge (grå/blå) */
+  background: #eef2f7;
   border-color: #cfd8e3;
 }
