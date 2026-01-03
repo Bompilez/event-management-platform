@@ -15,7 +15,7 @@ Some website builders (such as Squarespace) offer limited control over structure
 
 This project provides:
 - Full control over event data
-- A clean API for frontend rendering
+- API for frontend rendering
 - A custom admin interface independent of the CMS
 - Safe rendering of dynamic content
 
@@ -70,4 +70,5 @@ The frontend can fetch events via the API and render them dynamically, while con
 
 Core functionality is implemented.  
 Further improvements and refinements are planned.
+
 
