@@ -1,4 +1,4 @@
-// ==== DEMO STATE (bytt ut med fetch senere) ====
+
 let events = [
   {
     id: "S1el8UEOMmXHOrNNRcMR",
@@ -145,14 +145,14 @@ function renderList() {
     const img = e.imageUrl || "";
     const tagText = e.organizerType === "internal" ? "Campus" : "Ekstern";
 
-    // ✅ statusklasse til row
+
     const status = (e.status || "draft").toLowerCase();
     const statusClass =
       status === "published" ? "is-published" :
       status === "archived"  ? "is-archived"  :
       "is-draft";
 
-    // ✅ vis fra–til hvis finnes
+    
     const timeRange =
       (e.startTime && e.endTime) ? `${e.startTime}–${e.endTime}` :
       (e.startTime ? e.startTime : "");
@@ -373,5 +373,4 @@ document.querySelectorAll(".chip").forEach(btn => {
 
 searchEl.addEventListener("input", renderList);
 
-// Init
 renderList();
