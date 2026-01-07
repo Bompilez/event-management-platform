@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Send inn arrangement</title>
+
+  <link rel="stylesheet" href="./submit.css" />
+</head>
+<body>
+
+  <main class="page">
+    <!-- INFO -->
+    <header class="hero">
+      <div class="hero-inner">
+        <h1>Send inn arrangement</h1>
+        <p class="lead">
+          Bruk skjemaet under for å sende inn et arrangement til publisering.
+          Innsendinger blir gjennomgått før de legges ut.
+        </p>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <h2>Hva skjer etter innsending?</h2>
+            <ul>
+              <li>Du får en bekreftelse på skjermen når innsending er sendt.</li>
+              <li>Arrangør kan bli kontaktet ved behov for avklaringer.</li>
+              <li>Arrangementet publiseres når det er godkjent.</li>
+            </ul>
+          </div>
+
+          <div class="info-card">
+            <h2>Tips</h2>
+            <ul>
+              <li>Skriv en kort og tydelig oppsummering.</li>
+              <li>Legg inn program dersom dere har tidspunkter.</li>
+              <li>Bilde: legg inn en lenke (opplasting kommer senere).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- FORM -->
+    <section class="form-wrap">
+      <div class="form-head">
+        <h2>Skjema</h2>
+        <p class="muted">Felter merket med * er påkrevd.</p>
+      </div>
+
+      <form id="submitForm" class="form" novalidate>
+        <!-- honeypot -->
+        <div class="hp" aria-hidden="true">
+          <label>Ikke fyll ut dette feltet</label>
+          <input type="text" id="hpField" autocomplete="off" tabindex="-1" />
+        </div>
+
+        <fieldset class="block">
+          <legend>Kontaktinfo (ansvarlig for innsending)</legend>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="contactName">Navn *</label>
+              <input id="contactName" class="input" autocomplete="name" required />
+            </div>
+
+            <div class="field">
+              <label for="contactEmail">E-post *</label>
+              <input id="contactEmail" class="input" type="email" autocomplete="email" required />
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="contactPhone">Telefon</label>
+              <input id="contactPhone" class="input" autocomplete="tel" />
+            </div>
+
+            <div class="field">
+              <label for="contactOrg">Organisasjon / bedrift</label>
+              <input id="contactOrg" class="input" autocomplete="organization" />
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="block">
+          <legend>Arrangement</legend>
+
+          <div class="field">
+            <label for="title">Tittel *</label>
+            <input id="title" class="input" required />
+          </div>
+
+          <div class="field">
+            <label for="summary">Oppsummering *</label>
+            <textarea id="summary" class="textarea" rows="3" required></textarea>
+            <small class="hint">Kort tekst som passer i kortvisning/oversikt.</small>
+          </div>
+
+          <div class="field">
+            <label for="content">Brødtekst *</label>
+            <textarea id="content" class="textarea" rows="8" required></textarea>
+            <small class="hint">Skriv gjerne med linjeskift. (Vi rendrer trygt.)</small>
+          </div>
+
+          <div class="grid3">
+            <div class="field">
+              <label for="location">Sted *</label>
+              <input id="location" class="input" required />
+            </div>
+            <div class="field">
+              <label for="room">Rom</label>
+              <input id="room" class="input" />
+            </div>
+            <div class="field">
+              <label for="floor">Etasje</label>
+              <input id="floor" class="input" />
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="date">Dato *</label>
+              <input id="date" type="date" class="input" required />
+            </div>
+
+            <div class="grid2-inner">
+              <div class="field">
+                <label for="startTime">Fra *</label>
+                <input id="startTime" class="input" placeholder="12:00" required />
+              </div>
+              <div class="field">
+                <label for="endTime">Til</label>
+                <input id="endTime" class="input" placeholder="14:00" />
+              </div>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="organizerName">Arrangørnavn *</label>
+              <input id="organizerName" class="input" required />
+            </div>
+
+            <div class="field">
+              <label for="organizerType">Kategori</label>
+              <select id="organizerType" class="select">
+                <option value="external">Ekstern</option>
+                <option value="internal">Campus</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="organizerUrl">Arrangør-lenke</label>
+            <input id="organizerUrl" class="input" placeholder="https://…" />
+          </div>
+
+          <div class="field">
+            <label for="imageUrl">Bilde-URL (valgfritt)</label>
+            <input id="imageUrl" class="input" placeholder="https://…" />
+            <small class="hint">Opplasting kommer senere. Bruk gjerne et direkte bilde-URL.</small>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="price">Pris (kr)</label>
+              <input id="price" type="number" class="input" placeholder="0" min="0" />
+            </div>
+
+            <div class="field">
+              <label for="capacity">Kapasitet</label>
+              <input id="capacity" type="number" class="input" placeholder="25" min="0" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="registrationDeadline">Påmeldingsfrist</label>
+            <input id="registrationDeadline" type="datetime-local" class="input" />
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="ctaText">CTA-tekst</label>
+              <input id="ctaText" class="input" placeholder="Meld deg på" />
+            </div>
+
+            <div class="field">
+              <label for="ctaUrl">CTA-lenke</label>
+              <input id="ctaUrl" class="input" placeholder="https://…" />
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="block">
+          <legend>Program (valgfritt)</legend>
+
+          <div class="program-head">
+            <p class="muted">Legg inn punkter. Når du lagrer, sorteres de automatisk etter tid.</p>
+            <button type="button" class="btn" id="btnAddProgram">+ Legg til punkt</button>
+          </div>
+
+          <div id="programRows" class="program-rows"></div>
+
+          <template id="tplProgramRow">
+            <div class="program-row">
+              <input class="input program-time" placeholder="08:00" />
+              <input class="input program-text" placeholder="Hva skjer?" />
+              <button type="button" class="icon-btn danger program-remove" title="Fjern">✕</button>
+            </div>
+          </template>
+        </fieldset>
+
+        <div class="actions">
+          <button class="btn" type="reset">Tøm</button>
+          <button class="btn btn-primary" id="btnSubmit" type="submit">Send inn</button>
+        </div>
+
+        <div id="formMessage" class="message" role="status" aria-live="polite"></div>
+      </form>
+    </section>
+  </main>
+
+  <script src="./submit.js"></script>
+</body>
+</html>
