@@ -4,21 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin – Arrangement</title>
+
   <link rel="stylesheet" href="./admin.css" />
+
+  <!-- Quill -->
+  <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet" />
 </head>
 <body>
 
   <main class="page">
-    <div class="header">
-        <div class="header-content">
-            <div class="logo">
-                <img src="/web/admin/admin-assets/Campus-KSU-horizon-Grønn-5615.svg">
-            </div>
-            <div class="settings-container">
-
-            </div>
-        </div>
-    </div>
     <header class="topbar">
       <h1>Arrangementer</h1>
       <div class="topbar-actions">
@@ -40,14 +34,6 @@
         </div>
       </div>
 
-      <div class="categories">
-          <span class="categories-text">Tittel</span>
-          <span class="categories-text">Dato</span>
-          <span class="categories-text">Arrangør</span>
-          <span class="categories-text">Status</span>
-        </div>
-
-
       <div id="list" class="list"></div>
 
       <div id="emptyState" class="empty" hidden>
@@ -55,7 +41,6 @@
         <p>Det er ingen treff for filteret ditt akkurat nå.</p>
       </div>
     </section>
-
   </main>
 
   <!-- MODAL -->
@@ -74,9 +59,9 @@
 
       <div class="modal-body">
         <form id="form" class="form">
-
           <div class="form-grid">
             <div class="form-left">
+
               <div class="field">
                 <label for="title">Tittel</label>
                 <input id="title" class="input" autocomplete="off" />
@@ -100,30 +85,38 @@
                 <textarea id="summary" class="textarea" rows="3"></textarea>
               </div>
 
+              <!-- Quill editor -->
               <div class="field">
-                <label for="content">Brødtekst</label>
-                <textarea id="content" class="textarea" rows="9"></textarea>
-                <small class="hint">Tips: bruk linjeskift. Vi rendrer trygt med <code>&lt;br&gt;</code>.</small>
-              </div>
-
-              <div class="program">
-                <div class="program-head">
-                  <h3>Program</h3>
-                  <button type="button" class="btn" id="btnAddProgram">Legg til punkt</button>
+                <label for="contentEditor">Brødtekst</label>
+                <div class="quill-wrap">
+                  <div id="contentEditor" class="quill-editor"></div>
                 </div>
 
-                <div id="programRows" class="program-rows"></div>
-
-                <template id="tplProgramRow">
-                  <div class="program-row">
-                    <input class="input program-time" placeholder="12:00" />
-                    <input class="input program-text" placeholder="Velkommen" />
-                    <button type="button" class="icon-btn danger program-remove" title="Fjern">✕</button>
-                  </div>
-                </template>
+                <input type="hidden" id="content" name="content"/>
               </div>
+
+              <div id="programBlock">
+                <div class="program">
+                  <div class="program-head">
+                    <h3>Program</h3>
+                    <button type="button" class="btn" id="btnAddProgram">Legg til punkt</button>
+                  </div>
+
+                  <div id="programRows" class="program-rows"></div>
+
+                  <template id="tplProgramRow">
+                    <div class="program-row">
+                      <input class="input program-time" placeholder="12:00" />
+                      <input class="input program-text" placeholder="Velkommen" />
+                      <button type="button" class="icon-btn danger program-remove" title="Fjern">✕</button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
             </div>
 
+            <!-- HØYRE: DETALJER -->
             <aside class="form-right">
               <div class="card">
                 <div class="card-title">Detaljer</div>
@@ -144,6 +137,32 @@
                       <option value="internal">Campus</option>
                       <option value="external">Ekstern</option>
                     </select>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label>Vis/skjul moduler</label>
+
+                  <div class="toggle-list">
+                    <label class="toggle">
+                      <input type="checkbox" id="showPriceCapacity" checked />
+                      <span>Pris & kapasitet</span>
+                    </label>
+
+                    <label class="toggle">
+                      <input type="checkbox" id="showCta" checked />
+                      <span>CTA (Meld deg på)</span>
+                    </label>
+
+                    <label class="toggle">
+                      <input type="checkbox" id="showProgram" checked />
+                      <span>Program</span>
+                    </label>
+
+                    <label class="toggle">
+                      <input type="checkbox" id="showShare" checked />
+                      <span>Deling</span>
+                    </label>
                   </div>
                 </div>
 
@@ -186,14 +205,16 @@
                   </div>
                 </div>
 
-                <div class="grid2">
-                  <div class="field">
-                    <label for="price">Pris</label>
-                    <input id="price" type="number" class="input" placeholder="0" />
-                  </div>
-                  <div class="field">
-                    <label for="capacity">Kapasitet</label>
-                    <input id="capacity" type="number" class="input" placeholder="25" />
+                <div id="priceCapacityBlock">
+                  <div class="grid2">
+                    <div class="field">
+                      <label for="price">Pris</label>
+                      <input id="price" type="number" class="input" placeholder="0" />
+                    </div>
+                    <div class="field">
+                      <label for="capacity">Kapasitet</label>
+                      <input id="capacity" type="number" class="input" placeholder="25" />
+                    </div>
                   </div>
                 </div>
 
@@ -202,14 +223,16 @@
                   <input id="registrationDeadline" type="datetime-local" class="input" />
                 </div>
 
-                <div class="grid2">
-                  <div class="field">
-                    <label for="ctaText">CTA-tekst</label>
-                    <input id="ctaText" class="input" placeholder="Meld deg på" />
-                  </div>
-                  <div class="field">
-                    <label for="ctaUrl">CTA-lenke</label>
-                    <input id="ctaUrl" class="input" placeholder="https://…" />
+                <div id="ctaBlock">
+                  <div class="grid2">
+                    <div class="field">
+                      <label for="ctaText">CTA-tekst</label>
+                      <input id="ctaText" class="input" placeholder="Meld deg på" />
+                    </div>
+                    <div class="field">
+                      <label for="ctaUrl">CTA-lenke</label>
+                      <input id="ctaUrl" class="input" placeholder="https://…" />
+                    </div>
                   </div>
                 </div>
 
@@ -225,7 +248,8 @@
                       <span>Kalender</span>
                     </label>
 
-                    <label class="inline">
+                    <!-- ✅ Deling wrapper (kan skjules av toggle) -->
+                    <label class="inline" id="shareToggleBlock">
                       <input type="checkbox" id="shareEnabled" />
                       <span>Deling</span>
                     </label>
@@ -239,7 +263,6 @@
               </div>
             </aside>
           </div>
-
         </form>
       </div>
 
@@ -252,6 +275,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
   <script src="./admin.js"></script>
 </body>
 </html>

@@ -1,11 +1,12 @@
-
+// ==== DEMO STATE ====
 let events = [
   {
     id: "S1el8UEOMmXHOrNNRcMR",
     title: "Åpen dag på Campus",
     slug: "apen-dag-pa-campus",
     summary: "Bli kjent med studietilbudene våre og møte folk på campus.",
-    content: "Denne dagen kan du møte forelesere og studenter, få omvisning og stille spørsmål.",
+    content:
+      "<p>Denne dagen kan du møte forelesere og studenter, få omvisning og stille spørsmål.</p>",
     status: "published",
     organizerType: "internal",
     organizerName: "Campus Kristiansund",
@@ -16,7 +17,8 @@ let events = [
     location: "Kristiansund",
     room: "A213",
     floor: "2. etasje",
-    imageUrl: "https://images.squarespace-cdn.com/content/v1/65fd81e70e15be5560cfb279/fc387fcf-4ca0-43bf-a18e-edac109636a6/Bannerbilde+3.png?format=2500w",
+    imageUrl:
+      "https://images.squarespace-cdn.com/content/v1/65fd81e70e15be5560cfb279/fc387fcf-4ca0-43bf-a18e-edac109636a6/Bannerbilde+3.png?format=2500w",
     price: 1500,
     capacity: 25,
     ctaText: "Meld deg på",
@@ -31,14 +33,34 @@ let events = [
     ],
     createdAt: "2025-12-15T23:00:00.909Z",
     updatedAt: "2025-12-16T23:00:00.261Z",
-  }
+
+    showPriceCapacity: true,
+    showCta: true,
+    showProgram: true,
+    showShare: true,
+  },
 ];
 
 let activeFilter = "all";
 let activeId = null;
 
+// ==== CONFIG ====
+const FALLBACK_IMAGE =
+  "data:image/svg+xml;charset=utf-8," +
+  encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="560" viewBox="0 0 800 560">
+  <rect width="800" height="560" fill="#f3f4f6"/>
+  <rect x="80" y="90" width="640" height="380" rx="22" fill="#e5e7eb"/>
+  <path d="M230 380l95-110 70 80 95-120 150 150H230z" fill="#cbd5e1"/>
+  <circle cx="305" cy="215" r="38" fill="#cbd5e1"/>
+  <text x="400" y="510" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto" font-size="20" fill="#9ca3af">
+    No image
+  </text>
+</svg>`);
+
 // ==== ELEMENTS ====
 const $ = (q) => document.querySelector(q);
+
 const listEl = $("#list");
 const emptyEl = $("#emptyState");
 const modal = $("#modal");
@@ -47,11 +69,27 @@ const searchEl = $("#search");
 const tplProgram = $("#tplProgramRow");
 const programRows = $("#programRows");
 
+// Toggles (fra HTML vi la inn)
+const uiToggles = {
+  showPriceCapacity: $("#showPriceCapacity"),
+  showCta: $("#showCta"),
+  showProgram: $("#showProgram"),
+  showShare: $("#showShare"),
+};
+
+// Blocks som skal skjules/vises
+const uiBlocks = {
+  priceCapacityBlock: $("#priceCapacityBlock"),
+  ctaBlock: $("#ctaBlock"),
+  programBlock: $("#programBlock"),
+  shareToggleBlock: $("#shareToggleBlock"),
+};
+
 const fields = {
   title: $("#title"),
   slug: $("#slug"),
   summary: $("#summary"),
-  content: $("#content"),
+  content: $("#content"), 
 
   status: $("#status"),
   organizerType: $("#organizerType"),
@@ -83,11 +121,35 @@ const fields = {
   updatedAtText: $("#updatedAtText"),
 };
 
+// ==== QUILL INIT ====
+const quill = new Quill("#contentEditor", {
+  theme: "snow",
+  modules: {
+    toolbar: [
+      ["bold", "italic", "underline"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      ["link"],
+      ["clean"],
+    ],
+  },
+});
+
+quill.root.addEventListener("click", (e) => {
+  const a = e.target.closest("a");
+  if (!a) return;
+  a.setAttribute("target", "_blank");
+  a.setAttribute("rel", "noopener noreferrer");
+});
+
+// ==== UTILS ====
+const pad2 = (n) => String(n).padStart(2, "0");
+
 const toLocalInput = (iso) => {
   if (!iso) return "";
   const d = new Date(iso);
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(
+    d.getDate()
+  )}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 };
 
 const fromLocalInput = (val) => {
@@ -96,8 +158,49 @@ const fromLocalInput = (val) => {
   return d.toISOString();
 };
 
-const formatDate = (iso) => iso ? new Date(iso).toLocaleDateString("nb-NO") : "—";
-const formatDateTime = (iso) => iso ? new Date(iso).toLocaleString("nb-NO") : "—";
+const formatDate = (iso) =>
+  iso ? new Date(iso).toLocaleDateString("nb-NO") : "—";
+const formatDateTime = (iso) =>
+  iso ? new Date(iso).toLocaleString("nb-NO") : "—";
+
+const normalizeStatus = (s) => (s || "").toString().trim().toLowerCase();
+
+function statusClass(status) {
+  const s = normalizeStatus(status);
+  if (s === "draft") return "is-draft";
+  if (s === "published") return "is-published";
+  if (s === "archived") return "is-archived";
+  return "";
+}
+
+function buildEndIso(startAtIso, endTime) {
+  if (!startAtIso || !endTime) return null;
+  const d = new Date(startAtIso);
+  const [h, m] = String(endTime).split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+}
+
+function timeToMinutes(t) {
+  if (!t) return Number.POSITIVE_INFINITY;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t).trim());
+  if (!m) return Number.POSITIVE_INFINITY;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return Number.POSITIVE_INFINITY;
+  return hh * 60 + mm;
+}
+
+function sortProgram(program) {
+  return (Array.isArray(program) ? [...program] : [])
+    .map((x) => ({
+      time: (x?.time || "").toString().trim(),
+      text: (x?.text || "").toString().trim(),
+    }))
+    .filter((x) => x.time || x.text)
+    .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+}
 
 function openModal() {
   modal.classList.add("is-open");
@@ -110,27 +213,54 @@ function closeModal() {
   activeId = null;
 }
 
+// ==== VISIBILITY TOGGLES ====
+function applyVisibilityToggles() {
+  // Defaults: true hvis toggle ikke finnes
+  const showPrice = uiToggles.showPriceCapacity?.checked ?? true;
+  const showCta = uiToggles.showCta?.checked ?? true;
+  const showProgram = uiToggles.showProgram?.checked ?? true;
+  const showShare = uiToggles.showShare?.checked ?? true;
+
+  if (uiBlocks.priceCapacityBlock)
+    uiBlocks.priceCapacityBlock.style.display = showPrice ? "" : "none";
+  if (uiBlocks.ctaBlock)
+    uiBlocks.ctaBlock.style.display = showCta ? "" : "none";
+  if (uiBlocks.programBlock)
+    uiBlocks.programBlock.style.display = showProgram ? "" : "none";
+  if (uiBlocks.shareToggleBlock)
+    uiBlocks.shareToggleBlock.style.display = showShare ? "" : "none";
+
+  if (!showShare && fields.shareEnabled) fields.shareEnabled.checked = false;
+}
+
+Object.values(uiToggles).forEach((el) => {
+  if (!el) return;
+  el.addEventListener("change", applyVisibilityToggles);
+});
+
+// ==== FILTERING / SEARCH / SORT ====
 function getFiltered() {
   const q = (searchEl.value || "").trim().toLowerCase();
 
   return events
-    .filter(e => {
+    .filter((e) => {
       if (activeFilter === "all") return true;
       return (e.status || "draft") === activeFilter;
     })
-    .filter(e => {
+    .filter((e) => {
       if (!q) return true;
       const hay = `${e.title} ${e.organizerName} ${e.location}`.toLowerCase();
       return hay.includes(q);
     })
-    .sort((a,b) => {
-      const da = a.startAt ? new Date(a.startAt).getTime() : 0;
-      const db = b.startAt ? new Date(b.startAt).getTime() : 0;
+    .sort((a, b) => {
+      // Nærmest først
+      const da = a.startAt ? new Date(a.startAt).getTime() : Number.MAX_SAFE_INTEGER;
+      const db = b.startAt ? new Date(b.startAt).getTime() : Number.MAX_SAFE_INTEGER;
       return da - db;
     });
 }
 
-
+// ==== RENDER LIST ====
 function renderList() {
   const data = getFiltered();
   listEl.innerHTML = "";
@@ -141,30 +271,26 @@ function renderList() {
   }
   emptyEl.hidden = true;
 
-  data.forEach(e => {
-    const img = e.imageUrl || "";
+  data.forEach((e) => {
     const tagText = e.organizerType === "internal" ? "Campus" : "Ekstern";
-
-
-    const status = (e.status || "draft").toLowerCase();
-    const statusClass =
-      status === "published" ? "is-published" :
-      status === "archived"  ? "is-archived"  :
-      "is-draft";
-
-    
-    const timeRange =
-      (e.startTime && e.endTime) ? `${e.startTime}–${e.endTime}` :
-      (e.startTime ? e.startTime : "");
+    const endAt = buildEndIso(e.startAt, e.endTime);
 
     const row = document.createElement("div");
-    row.className = `row ${statusClass}`;
+    row.className = `row ${statusClass(e.status)}`;
+
+    const img = (e.imageUrl || "").trim();
+    const imgSrc = img || FALLBACK_IMAGE;
 
     row.innerHTML = `
       <div class="row-left">
-        <img class="thumb" src="${img}" alt="" onerror="this.style.display='none'"/>
+        <img class="thumb" src="${imgSrc}" alt="" loading="lazy"
+             onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
         <div style="min-width:0">
           <div class="row-title">${e.title || "Uten tittel"}</div>
+          <div class="row-sub">
+            ${(e.startTime && e.endTime) ? `${e.startTime}–${e.endTime}` : (e.startTime || "")}
+            ${e.location ? `• ${e.location}` : ""}
+          </div>
           <div class="tag">${tagText}</div>
         </div>
       </div>
@@ -183,7 +309,7 @@ function renderList() {
   });
 }
 
-
+// ==== PROGRAM UI ====
 function clearProgramUI() {
   programRows.innerHTML = "";
 }
@@ -201,14 +327,17 @@ function addProgramRow(time = "", text = "") {
 }
 
 function readProgramRows() {
-  return [...programRows.querySelectorAll(".program-row")].map(row => ({
+  const rows = [...programRows.querySelectorAll(".program-row")].map((row) => ({
     time: row.querySelector(".program-time").value.trim(),
     text: row.querySelector(".program-text").value.trim(),
-  })).filter(x => x.time || x.text);
+  }));
+
+  return sortProgram(rows);
 }
 
+// ==== LOAD / READ FORM ====
 function loadIntoForm(id) {
-  const e = events.find(x => x.id === id);
+  const e = events.find((x) => x.id === id);
   if (!e) return;
 
   activeId = id;
@@ -216,7 +345,12 @@ function loadIntoForm(id) {
   fields.title.value = e.title || "";
   fields.slug.value = e.slug || "";
   fields.summary.value = e.summary || "";
-  fields.content.value = e.content || "";
+
+  quill.setContents([]); // reset
+  const html = (e.content || "").toString();
+  if (html) {
+    quill.clipboard.dangerouslyPasteHTML(0, html);
+  }
 
   fields.status.value = e.status || "draft";
   fields.organizerType.value = e.organizerType || "internal";
@@ -232,11 +366,11 @@ function loadIntoForm(id) {
   fields.floor.value = e.floor || "";
 
   fields.imageUrl.value = e.imageUrl || "";
-  fields.imagePreview.src = e.imageUrl || "";
-  fields.imagePreview.style.display = e.imageUrl ? "block" : "none";
+  fields.imagePreview.src = (e.imageUrl || "").trim() || FALLBACK_IMAGE;
+  fields.imagePreview.style.display = "block";
 
-  fields.price.value = (typeof e.price === "number") ? e.price : "";
-  fields.capacity.value = (typeof e.capacity === "number") ? e.capacity : "";
+  fields.price.value = typeof e.price === "number" ? e.price : "";
+  fields.capacity.value = typeof e.capacity === "number" ? e.capacity : "";
 
   fields.registrationDeadline.value = toLocalInput(e.registrationDeadline);
   fields.ctaText.value = e.ctaText || "";
@@ -248,16 +382,38 @@ function loadIntoForm(id) {
   fields.createdAtText.textContent = formatDateTime(e.createdAt);
   fields.updatedAtText.textContent = formatDateTime(e.updatedAt);
 
+  // Toggles: default true om mangler
+  if (uiToggles.showPriceCapacity)
+    uiToggles.showPriceCapacity.checked = e.showPriceCapacity !== false;
+  if (uiToggles.showCta) uiToggles.showCta.checked = e.showCta !== false;
+  if (uiToggles.showProgram)
+    uiToggles.showProgram.checked = e.showProgram !== false;
+  if (uiToggles.showShare)
+    uiToggles.showShare.checked = e.showShare !== false;
+
+  applyVisibilityToggles();
+
   clearProgramUI();
-  (Array.isArray(e.program) ? e.program : []).forEach(p => addProgramRow(p.time, p.text));
+  sortProgram(e.program || []).forEach((p) => addProgramRow(p.time, p.text));
 }
 
 function readFormToObject() {
+  let html = quill.root.innerHTML;
+
+  if (html === "<p><br></p>") html = "";
+
+  if (fields.content) fields.content.value = html;
+
+  const showPriceCapacity = uiToggles.showPriceCapacity?.checked ?? true;
+  const showCta = uiToggles.showCta?.checked ?? true;
+  const showProgram = uiToggles.showProgram?.checked ?? true;
+  const showShare = uiToggles.showShare?.checked ?? true;
+
   return {
     title: fields.title.value.trim(),
     slug: fields.slug.value.trim(),
     summary: fields.summary.value.trim(),
-    content: fields.content.value,
+    content: html,
 
     status: fields.status.value,
     organizerType: fields.organizerType.value,
@@ -274,30 +430,47 @@ function readFormToObject() {
 
     imageUrl: fields.imageUrl.value.trim() || null,
 
-    price: fields.price.value === "" ? null : Number(fields.price.value),
-    capacity: fields.capacity.value === "" ? null : Number(fields.capacity.value),
+    // Hvis modulen skjules, lagrer vi null (så event-siden kan skjule det)
+    price: showPriceCapacity
+      ? (fields.price.value === "" ? null : Number(fields.price.value))
+      : null,
+    capacity: showPriceCapacity
+      ? (fields.capacity.value === "" ? null : Number(fields.capacity.value))
+      : null,
 
     registrationDeadline: fromLocalInput(fields.registrationDeadline.value),
-    ctaText: fields.ctaText.value.trim(),
-    ctaUrl: fields.ctaUrl.value.trim(),
+
+    // Hvis CTA skjules: blank ut
+    ctaText: showCta ? fields.ctaText.value.trim() : "",
+    ctaUrl: showCta ? fields.ctaUrl.value.trim() : "",
 
     calendarEnabled: fields.calendarEnabled.checked,
-    shareEnabled: fields.shareEnabled.checked,
 
-    program: readProgramRows(),
+    // Hvis share skjules: false
+    shareEnabled: showShare ? fields.shareEnabled.checked : false,
+
+    // Program: hvis skjult -> tomt array
+    program: showProgram ? readProgramRows() : [],
+
+    // Toggles lagres i dokumentet
+    showPriceCapacity,
+    showCta,
+    showProgram,
+    showShare,
+
     updatedAt: new Date().toISOString(),
   };
 }
 
-// ==== EVENTS ====
+// ==== EVENT LISTENERS ====
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-close]");
   if (el) closeModal();
 });
 
-$("#btnAddProgram").addEventListener("click", () => addProgramRow("", ""));
-$("#btnNew").addEventListener("click", () => {
-  // enkel "ny"
+$("#btnAddProgram")?.addEventListener("click", () => addProgramRow("", ""));
+
+$("#btnNew")?.addEventListener("click", () => {
   const id = "tmp_" + Math.random().toString(16).slice(2);
   const now = new Date().toISOString();
 
@@ -328,6 +501,12 @@ $("#btnNew").addEventListener("click", () => {
     program: [],
     createdAt: now,
     updatedAt: now,
+
+    // defaults
+    showPriceCapacity: true,
+    showCta: true,
+    showProgram: true,
+    showShare: true,
   };
 
   events.unshift(newEvent);
@@ -336,16 +515,17 @@ $("#btnNew").addEventListener("click", () => {
   openModal();
 });
 
-fields.imageUrl.addEventListener("input", () => {
+// Preview image
+fields.imageUrl?.addEventListener("input", () => {
   const v = fields.imageUrl.value.trim();
-  fields.imagePreview.src = v;
-  fields.imagePreview.style.display = v ? "block" : "none";
+  fields.imagePreview.src = v || FALLBACK_IMAGE;
+  fields.imagePreview.style.display = "block";
 });
 
-$("#btnSave").addEventListener("click", () => {
+$("#btnSave")?.addEventListener("click", () => {
   if (!activeId) return;
 
-  const idx = events.findIndex(x => x.id === activeId);
+  const idx = events.findIndex((x) => x.id === activeId);
   if (idx === -1) return;
 
   const patch = readFormToObject();
@@ -355,22 +535,24 @@ $("#btnSave").addEventListener("click", () => {
   closeModal();
 });
 
-$("#btnDelete").addEventListener("click", () => {
+$("#btnDelete")?.addEventListener("click", () => {
   if (!activeId) return;
-  events = events.filter(x => x.id !== activeId);
+  events = events.filter((x) => x.id !== activeId);
   renderList();
   closeModal();
 });
 
-document.querySelectorAll(".chip").forEach(btn => {
+document.querySelectorAll(".chip").forEach((btn) => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".chip").forEach(x => x.classList.remove("is-active"));
+    document.querySelectorAll(".chip").forEach((x) => x.classList.remove("is-active"));
     btn.classList.add("is-active");
     activeFilter = btn.dataset.filter;
     renderList();
   });
 });
 
-searchEl.addEventListener("input", renderList);
+searchEl?.addEventListener("input", renderList);
 
+// Init
+applyVisibilityToggles();
 renderList();
