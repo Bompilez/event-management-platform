@@ -64,6 +64,33 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.env.*
+.runtimeconfig.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor settings
+.vscode/
+.idea/
+
+# Build outputs
+dist/
+build/
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.svelte-kit/
+.turbo/
+
+# Hosting/CI artifacts
+.vercel/
+.netlify/
+
+# Local overrides
+*.local
 
 # dataconnect generated files
 .dataconnect

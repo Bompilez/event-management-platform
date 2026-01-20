@@ -1,5 +1,12 @@
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getAnonUid, app } from "../submit/firebase.js";
+
+const storage = getStorage(app);
+const auth = getAuth(app);
+
 // ==== DEMO STATE ====
-let events = [
+const DEMO_EVENTS = [
   {
     id: "S1el8UEOMmXHOrNNRcMR",
     title: "Åpen dag på Campus",
@@ -41,10 +48,16 @@ let events = [
   },
 ];
 
+let events = [];
+
 let activeFilter = "all";
 let activeId = null;
 
 // ==== CONFIG ====
+const API_BASE = "https://us-central1-campusksu-event-applikasjon.cloudfunctions.net";
+const ADMIN_EVENTS_URL = `${API_BASE}/adminEvents`;
+const ADMIN_UPDATE_URL = `${API_BASE}/adminUpdate`;
+const ADMIN_DELETE_URL = `${API_BASE}/adminDelete`;
 const FALLBACK_IMAGE =
   "data:image/svg+xml;charset=utf-8," +
   encodeURIComponent(`
@@ -65,6 +78,8 @@ const listEl = $("#list");
 const emptyEl = $("#emptyState");
 const modal = $("#modal");
 const searchEl = $("#search");
+const adminPanel = $("#adminPanel");
+const btnLogout = $("#btnLogout");
 
 const tplProgram = $("#tplProgramRow");
 const programRows = $("#programRows");
@@ -104,8 +119,9 @@ const fields = {
   room: $("#room"),
   floor: $("#floor"),
 
-  imageUrl: $("#imageUrl"),
   imagePreview: $("#imagePreview"),
+  imageFile: $("#adminImageFile"),
+  imageError: $("#adminImageError"),
 
   price: $("#price"),
   capacity: $("#capacity"),
@@ -120,6 +136,82 @@ const fields = {
   createdAtText: $("#createdAtText"),
   updatedAtText: $("#updatedAtText"),
 };
+
+let currentImagePath = null;
+let currentImageUrl = null;
+const MAX_MB = 1;
+const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
+
+let currentUser = null;
+
+function setAuthUi(signedIn) {
+  if (adminPanel) adminPanel.hidden = !signedIn;
+}
+
+function redirectToLogin(reason = "") {
+  const qs = reason ? `?reason=${encodeURIComponent(reason)}` : "";
+  window.location.href = `/admin/login.html${qs}`;
+}
+
+async function getIdToken() {
+  if (!currentUser) return null;
+  return currentUser.getIdToken();
+}
+
+async function authFetch(url, options = {}) {
+  const token = await getIdToken();
+  const headers = { ...(options.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return fetch(url, { ...options, headers });
+}
+
+function showImageError(text) {
+  if (!fields.imageError) return;
+  fields.imageError.textContent = text || "";
+  fields.imageError.style.display = text ? "block" : "none";
+}
+
+function isLandscape(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img.width >= img.height);
+    img.onerror = () => resolve(false);
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function uploadAdminImage(file) {
+  if (!file) return null;
+
+  if (!ALLOWED.includes(file.type)) {
+    throw new Error("Ugyldig filtype. Bruk JPG, PNG eller WebP.");
+  }
+
+  const maxBytes = MAX_MB * 1024 * 1024;
+  if (file.size > maxBytes) {
+    throw new Error(`Filen er for stor. Maks ${MAX_MB} MB.`);
+  }
+
+  const okLandscape = await isLandscape(file);
+  if (!okLandscape) {
+    throw new Error("Bildet må være liggende format.");
+  }
+
+  const uid = await getAnonUid();
+  const safeName = file.name.replace(/[^a-z0-9._-]/gi, "_").slice(0, 80);
+  const path = `uploads/${uid}/${Date.now()}_${safeName}`;
+
+  const fileRef = ref(storage, path);
+  const metadata = {
+    contentType: file.type,
+    cacheControl: "public,max-age=31536000",
+  };
+
+  const snap = await uploadBytes(fileRef, file, metadata);
+  const url = await getDownloadURL(snap.ref);
+
+  return { url, path };
+}
 
 // ==== QUILL INIT ====
 const quill = new Quill("#contentEditor", {
@@ -237,6 +329,31 @@ Object.values(uiToggles).forEach((el) => {
   if (!el) return;
   el.addEventListener("change", applyVisibilityToggles);
 });
+
+async function loadEvents() {
+  try {
+    const res = await authFetch(ADMIN_EVENTS_URL);
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        await signOut(auth);
+        redirectToLogin("unauthorized");
+        return;
+      }
+      throw new Error(`Failed to load events (${res.status})`);
+    }
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      events = data;
+      renderList();
+      return;
+    }
+    throw new Error("Unexpected response shape");
+  } catch (err) {
+    console.error("Failed to load events:", err);
+    events = [];
+    renderList();
+  }
+}
 
 // ==== FILTERING / SEARCH / SORT ====
 function getFiltered() {
@@ -365,9 +482,11 @@ function loadIntoForm(id) {
   fields.room.value = e.room || "";
   fields.floor.value = e.floor || "";
 
-  fields.imageUrl.value = e.imageUrl || "";
-  fields.imagePreview.src = (e.imageUrl || "").trim() || FALLBACK_IMAGE;
+  currentImageUrl = e.imageUrl || "";
+  fields.imagePreview.src = (currentImageUrl || "").trim() || FALLBACK_IMAGE;
   fields.imagePreview.style.display = "block";
+  currentImagePath = e.imagePath || null;
+  showImageError("");
 
   fields.price.value = typeof e.price === "number" ? e.price : "";
   fields.capacity.value = typeof e.capacity === "number" ? e.capacity : "";
@@ -428,7 +547,8 @@ function readFormToObject() {
     room: fields.room.value.trim(),
     floor: fields.floor.value.trim(),
 
-    imageUrl: fields.imageUrl.value.trim() || null,
+    imageUrl: currentImageUrl ? String(currentImageUrl).trim() : null,
+    imagePath: currentImagePath,
 
     // Hvis modulen skjules, lagrer vi null (så event-siden kan skjule det)
     price: showPriceCapacity
@@ -471,6 +591,10 @@ document.addEventListener("click", (e) => {
 $("#btnAddProgram")?.addEventListener("click", () => addProgramRow("", ""));
 
 $("#btnNew")?.addEventListener("click", () => {
+  if (!currentUser) {
+    redirectToLogin("login_required");
+    return;
+  }
   const id = "tmp_" + Math.random().toString(16).slice(2);
   const now = new Date().toISOString();
 
@@ -491,6 +615,7 @@ $("#btnNew")?.addEventListener("click", () => {
     room: "",
     floor: "",
     imageUrl: null,
+    imagePath: null,
     price: null,
     capacity: null,
     ctaText: "Meld deg på",
@@ -516,30 +641,123 @@ $("#btnNew")?.addEventListener("click", () => {
 });
 
 // Preview image
-fields.imageUrl?.addEventListener("input", () => {
-  const v = fields.imageUrl.value.trim();
-  fields.imagePreview.src = v || FALLBACK_IMAGE;
+fields.imageFile?.addEventListener("change", async () => {
+  showImageError("");
+  const file = fields.imageFile.files?.[0];
+  if (!file) return;
+
+  if (!ALLOWED.includes(file.type)) {
+    showImageError("Ugyldig filtype. Bruk JPG, PNG eller WebP.");
+    fields.imageFile.value = "";
+    return;
+  }
+
+  const maxBytes = MAX_MB * 1024 * 1024;
+  if (file.size > maxBytes) {
+    showImageError(`Filen er for stor. Maks ${MAX_MB} MB.`);
+    fields.imageFile.value = "";
+    return;
+  }
+
+  const okLandscape = await isLandscape(file);
+  if (!okLandscape) {
+    showImageError("Bildet må være liggende format.");
+    fields.imageFile.value = "";
+    return;
+  }
+
+  fields.imagePreview.src = URL.createObjectURL(file);
   fields.imagePreview.style.display = "block";
 });
 
-$("#btnSave")?.addEventListener("click", () => {
+$("#btnSave")?.addEventListener("click", async () => {
+  if (!currentUser) {
+    redirectToLogin("login_required");
+    return;
+  }
   if (!activeId) return;
 
   const idx = events.findIndex((x) => x.id === activeId);
   if (idx === -1) return;
 
   const patch = readFormToObject();
-  events[idx] = { ...events[idx], ...patch };
 
-  renderList();
-  closeModal();
+  try {
+    showImageError("");
+
+    if (fields.imageFile?.files?.[0]) {
+      const imageMeta = await uploadAdminImage(fields.imageFile.files[0]);
+      patch.imageUrl = imageMeta?.url ?? patch.imageUrl;
+      patch.imagePath = imageMeta?.path ?? null;
+      currentImageUrl = patch.imageUrl || "";
+      fields.imagePreview.src = patch.imageUrl || FALLBACK_IMAGE;
+      fields.imagePreview.style.display = "block";
+      currentImagePath = patch.imagePath;
+      fields.imageFile.value = "";
+    } else {
+      patch.imagePath = currentImagePath;
+    }
+  } catch (err) {
+    showImageError(err?.message || "Kunne ikke laste opp bilde.");
+    return;
+  }
+
+  const payload = { id: activeId, ...patch };
+
+  try {
+    const res = await authFetch(ADMIN_UPDATE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = data?.error || "Kunne ikke lagre endringer.";
+      throw new Error(msg);
+    }
+
+    const savedId = data?.id || activeId;
+    events[idx] = { ...events[idx], ...patch, id: savedId };
+    activeId = savedId;
+
+    renderList();
+    closeModal();
+  } catch (err) {
+    console.error("Admin update failed:", err);
+    alert(err?.message || "Kunne ikke lagre endringer.");
+  }
 });
 
-$("#btnDelete")?.addEventListener("click", () => {
+$("#btnDelete")?.addEventListener("click", async () => {
+  if (!currentUser) {
+    redirectToLogin("login_required");
+    return;
+  }
   if (!activeId) return;
-  events = events.filter((x) => x.id !== activeId);
-  renderList();
-  closeModal();
+
+  if (!confirm("Slette arrangementet? Dette kan ikke angres.")) return;
+
+  try {
+    const res = await authFetch(ADMIN_DELETE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: activeId }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = data?.error || "Kunne ikke slette arrangementet.";
+      throw new Error(msg);
+    }
+
+    events = events.filter((x) => x.id !== activeId);
+    renderList();
+    closeModal();
+  } catch (err) {
+    console.error("Admin delete failed:", err);
+    alert(err?.message || "Kunne ikke slette arrangementet.");
+  }
 });
 
 document.querySelectorAll(".chip").forEach((btn) => {
@@ -555,4 +773,22 @@ searchEl?.addEventListener("input", renderList);
 
 // Init
 applyVisibilityToggles();
-renderList();
+setAuthUi(false);
+
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user || null;
+  setAuthUi(!!user);
+  if (user) {
+    await loadEvents();
+    return;
+  }
+  events = [];
+  if (listEl) listEl.innerHTML = "";
+  if (emptyEl) emptyEl.hidden = true;
+  closeModal();
+  redirectToLogin("login_required");
+});
+
+btnLogout?.addEventListener("click", async () => {
+  await signOut(auth);
+});

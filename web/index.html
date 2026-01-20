@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Campus Kristiansund – Arrangementer</title>
+  <style>
+    :root {
+      --bg: #f7f7f8;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --radius: 16px;
+      --shadow: 0 16px 40px rgba(0,0,0,.10);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .page {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+    h1 { margin: 0 0 8px; font-size: 26px; }
+    p { margin: 0 0 16px; color: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    a {
+      display: block;
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      text-decoration: none;
+      color: inherit;
+      background: #fff;
+    }
+    a:hover { box-shadow: 0 10px 24px rgba(0,0,0,.08); }
+    .title { font-weight: 700; margin-bottom: 6px; }
+    .hint { font-size: 13px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="card">
+      <h1>Campus Kristiansund – Arrangementer</h1>
+      <p>Velg hva du vil åpne:</p>
+      <div class="grid">
+        <a href="/submit/submit.html">
+          <div class="title">Send inn arrangement</div>
+          <div class="hint">Skjema for innsending</div>
+        </a>
+        <a href="/admin/index.html">
+          <div class="title">Admin</div>
+          <div class="hint">Rediger og publiser arrangementer</div>
+        </a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

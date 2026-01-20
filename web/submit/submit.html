@@ -6,6 +6,7 @@
   <title>Send inn arrangement</title>
 
   <link rel="stylesheet" href="./submit.css" />
+  <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet" />
 </head>
 <body>
 
@@ -13,7 +14,7 @@
     <!-- INFO -->
     <header class="hero">
       <div class="hero-inner">
-        <h1>Send inn arrangement</h1>
+        <h1>Send inn arrangement til Campus Kristiansund</h1>
         <p class="lead">
           Bruk skjemaet under for å sende inn et arrangement til publisering.
           Innsendinger blir gjennomgått før de legges ut.
@@ -23,7 +24,6 @@
           <div class="info-card">
             <h2>Hva skjer etter innsending?</h2>
             <ul>
-              <li>Du får en bekreftelse på skjermen når innsending er sendt.</li>
               <li>Arrangør kan bli kontaktet ved behov for avklaringer.</li>
               <li>Arrangementet publiseres når det er godkjent.</li>
             </ul>
@@ -93,14 +93,19 @@
 
           <div class="field">
             <label for="summary">Oppsummering *</label>
-            <textarea id="summary" class="textarea" rows="3" required></textarea>
-            <small class="hint">Kort tekst som passer i kortvisning/oversikt.</small>
+            <textarea id="summary" class="textarea" rows="3" maxlength="150" required></textarea>
+            <div class="field-max-word">
+              <small class="hint">Kort oppsumering av arrangemntet</small>
+              <small class="hint" id="summaryCounter">0 / 150 tegn</small>
+            </div>
           </div>
 
           <div class="field">
             <label for="content">Brødtekst *</label>
-            <textarea id="content" class="textarea" rows="8" required></textarea>
-            <small class="hint">Skriv gjerne med linjeskift. (Vi rendrer trygt.)</small>
+            <div class="quill-wrap">
+              <div id="contentEditor" class="quill-editor"></div>
+            </div>
+            <input type="hidden" id="content" name="content" required />
           </div>
 
           <div class="grid3">
@@ -156,11 +161,19 @@
             <input id="organizerUrl" class="input" placeholder="https://…" />
           </div>
 
-          <div class="field">
-            <label for="imageUrl">Bilde-URL (valgfritt)</label>
-            <input id="imageUrl" class="input" placeholder="https://…" />
-            <small class="hint">Opplasting kommer senere. Bruk gjerne et direkte bilde-URL.</small>
-          </div>
+        <div class="field">
+          <span class="label">Bilde (jpg/png/webp)</span>
+          <label class="image-drop" for="imageFile">
+            <input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp" />
+            <span class="image-drop-icon" aria-hidden="true">+</span>
+            <span class="image-drop-text">Klikk for å velge bilde</span>
+            <span class="image-drop-sub">Maks 1 MB. Bildet må være liggende format.</span>
+          </label>
+        </div>
+
+        <img id="imagePreview" style="display:none;max-width:100%;border-radius:12px;margin-top:10px;" alt="">
+        <p id="imageError" style="color:#b91c1c;margin:8px 0 0;"></p>
+
 
           <div class="grid2">
             <div class="field">
@@ -181,12 +194,12 @@
 
           <div class="grid2">
             <div class="field">
-              <label for="ctaText">CTA-tekst</label>
+              <label for="ctaText">Påmledings-knapp</label>
               <input id="ctaText" class="input" placeholder="Meld deg på" />
             </div>
 
             <div class="field">
-              <label for="ctaUrl">CTA-lenke</label>
+              <label for="ctaUrl">Påmledings-lenke</label>
               <input id="ctaUrl" class="input" placeholder="https://…" />
             </div>
           </div>
@@ -196,7 +209,6 @@
           <legend>Program (valgfritt)</legend>
 
           <div class="program-head">
-            <p class="muted">Legg inn punkter. Når du lagrer, sorteres de automatisk etter tid.</p>
             <button type="button" class="btn" id="btnAddProgram">+ Legg til punkt</button>
           </div>
 
@@ -221,6 +233,26 @@
     </section>
   </main>
 
-  <script src="./submit.js"></script>
+  <div id="successModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-label="Takk for innsending">
+      <button class="icon-btn modal-close" data-close="1" aria-label="Lukk">✕</button>
+      <div class="modal-body">
+        <h2>Takk for innsendingen!</h2>
+        <p>Vi har mottatt arrangementet og gjennomgar det fortlopende.</p>
+        <p class="muted">Du kan lukke denne fanen na.</p>
+        <div class="modal-actions">
+          <button class="btn btn-primary" data-close="1">Lukk</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.RECAPTCHA_SITE_KEY = "6LdOh1AsAAAAALmLYC8z0j3Bl5_VyBDLb99b60Pm";
+  </script>
+  <script src="https://www.google.com/recaptcha/api.js?render=6LdOh1AsAAAAALmLYC8z0j3Bl5_VyBDLb99b60Pm"></script>
+  <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+  <script type="module" src="./submit.js"></script>
 </body>
 </html>

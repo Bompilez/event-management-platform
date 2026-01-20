@@ -39,6 +39,27 @@ body {
   padding: 24px;
 }
 
+.login-panel {
+  display: grid;
+  place-items: center;
+  min-height: 70vh;
+}
+.login-card {
+  width: min(420px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 24px;
+}
+.login-card h1 { margin: 0 0 6px; font-size: 22px; }
+.login-card p { margin: 0 0 16px; color: var(--muted); }
+.login-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
 .topbar {
   display: flex;
   align-items: center;
@@ -175,6 +196,7 @@ body {
 
 .muted { color: var(--muted); }
 .hint { color: var(--muted); font-size: 12px; display: block; margin-top: 6px; }
+.hint.is-error { color: var(--danger); }
 
 /* Modal */
 .modal {
@@ -290,6 +312,58 @@ label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px
   background: #f3f4f6;
 }
 .img-preview img { width: 100%; height: 160px; object-fit: cover; display: none; }
+
+.image-drop{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 2px dashed #cbd5e1;
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 18px 12px;
+  text-align: center;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.image-drop input{
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.image-drop:hover{
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+.image-drop:focus-within{
+  border-color: #cbd5e1;
+  box-shadow: var(--focus);
+}
+.image-drop-icon{
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #0f172a;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 700;
+}
+.image-drop-text{
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.image-drop-sub{
+  font-size: 12px;
+  color: var(--muted);
+}
 
 .timestamps {
   margin-top: 12px;

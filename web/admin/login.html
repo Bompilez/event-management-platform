@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin – Logg inn</title>
+  <link rel="stylesheet" href="./admin.css" />
+</head>
+<body>
+  <main class="page">
+    <section class="login-panel">
+      <div class="login-card">
+        <h1>Admin</h1>
+        <p>Logg inn for å administrere arrangementer.</p>
+        <div class="field">
+          <label for="loginEmail">E-post</label>
+          <input id="loginEmail" class="input" type="email" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="loginPassword">Passord</label>
+          <input id="loginPassword" class="input" type="password" autocomplete="current-password" />
+        </div>
+        <div class="login-actions">
+          <button class="btn btn-primary" id="btnLogin" type="button">Logg inn</button>
+        </div>
+        <p id="loginError" class="hint is-error" style="display:none;"></p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./login.js"></script>
+</body>
+</html>

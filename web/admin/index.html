@@ -13,10 +13,12 @@
 <body>
 
   <main class="page">
+    <section id="adminPanel" hidden>
     <header class="topbar">
       <h1>Arrangementer</h1>
       <div class="topbar-actions">
         <button class="btn btn-primary" id="btnNew">+ Nytt arrangement</button>
+        <button class="btn" id="btnLogout">Logg ut</button>
       </div>
     </header>
 
@@ -40,6 +42,7 @@
         <p><strong>Ingen arrangementer</strong></p>
         <p>Det er ingen treff for filteret ditt akkurat nå.</p>
       </div>
+    </section>
     </section>
   </main>
 
@@ -198,8 +201,14 @@
                 </div>
 
                 <div class="field">
-                  <label for="imageUrl">Bilde-URL</label>
-                  <input id="imageUrl" class="input" placeholder="https://…" />
+                  <label class="label">Bilde</label>
+                  <label class="image-drop" for="adminImageFile">
+                    <input id="adminImageFile" type="file" accept="image/jpeg,image/png,image/webp" />
+                    <span class="image-drop-icon" aria-hidden="true">+</span>
+                    <span class="image-drop-text">Klikk for å laste opp nytt bilde</span>
+                    <span class="image-drop-sub">Maks 1 MB. Bildet må være liggende format.</span>
+                  </label>
+                  <p id="adminImageError" class="hint is-error" style="display:none;"></p>
                   <div class="img-preview">
                     <img id="imagePreview" alt="" />
                   </div>
@@ -276,6 +285,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
-  <script src="./admin.js"></script>
+  <script type="module" src="./submit.js"></script>
+  <script type="module" src="./admin.js"></script>
 </body>
 </html>
