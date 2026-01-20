@@ -11,7 +11,7 @@ const imageError = document.getElementById("imageError");
 let uploadedImageUrl = null;
 let uploadedImagePath = null;
 
-const MAX_MB = 1;
+const MAX_MB = 4;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
 // Enkel “liggende”-sjekk (bredde >= høyde)

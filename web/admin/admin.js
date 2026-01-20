@@ -139,7 +139,7 @@ const fields = {
 
 let currentImagePath = null;
 let currentImageUrl = null;
-const MAX_MB = 1;
+const MAX_MB = 4;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
 let currentUser = null;
