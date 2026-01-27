@@ -18,6 +18,12 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/event",
+        "function": "eventPage"
+      }
     ]
   },
   "storage": {

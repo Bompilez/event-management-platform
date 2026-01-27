@@ -6,6 +6,7 @@
   <title>Admin – Arrangement</title>
 
   <link rel="stylesheet" href="./admin.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" />
 
   <!-- Quill -->
   <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet" />
@@ -14,11 +15,34 @@
 
   <main class="page">
     <section id="adminPanel" hidden>
+    <div class="admin-topbar">
+      <div class="brand">
+        <img src="./admin-assets/Campus-KSU-horizon-Grønn-5615.svg" alt="Campus Kristiansund" />
+      </div>
+      <div class="admin-topbar-actions">
+        <button class="icon-btn bell" id="btnBell" type="button" aria-label="Nye arrangementer">
+          <span class="material-symbols-outlined bell-icon" aria-hidden="true">notifications</span>
+          <span class="bell-badge" id="notifBadge" hidden>0</span>
+        </button>
+        <div class="notif-panel" id="notifPanel" hidden>
+          <div class="notif-head">Nye arrangementer</div>
+          <div class="notif-list" id="notifList"></div>
+          <div class="notif-empty" id="notifEmpty" hidden>Ingen nye arrangementer.</div>
+        </div>
+        <button class="btn" id="btnMailRecipients" type="button">E‑postvarsler</button>
+        <button class="btn" id="btnLogout" type="button">Logg ut</button>
+      </div>
+    </div>
+    <div id="adminLoading" class="loading-overlay" aria-hidden="true">
+      <div class="loading-card">
+        <div class="spinner" aria-hidden="true"></div>
+        <div>Laster...</div>
+      </div>
+    </div>
     <header class="topbar">
       <h1>Arrangementer</h1>
       <div class="topbar-actions">
         <button class="btn btn-primary" id="btnNew">+ Nytt arrangement</button>
-        <button class="btn" id="btnLogout">Logg ut</button>
       </div>
     </header>
 
@@ -55,6 +79,7 @@
         <div class="modal-title">
           <h2 id="modalTitle">Rediger arrangement</h2>
           <p class="muted" id="modalSub">Oppdater innhold og detaljer</p>
+          <p class="muted" id="modalId"></p>
         </div>
 
         <button class="icon-btn" data-close="1" aria-label="Lukk">✕</button>
@@ -98,6 +123,13 @@
                 <input type="hidden" id="content" name="content"/>
               </div>
 
+                <div class="field">
+                  <label class="toggle">
+                    <input type="checkbox" id="showProgram" checked />
+                    <span>Legg til program</span>
+                  </label>
+                </div>
+
               <div id="programBlock">
                 <div class="program">
                   <div class="program-head">
@@ -125,53 +157,20 @@
                 <div class="card-title">Detaljer</div>
 
                 <div class="grid2">
-                  <div class="field">
+                  <div class="field stacked">
                     <label for="status">Status</label>
                     <select id="status" class="select">
-                      <option value="draft">Ikke publisert</option>
-                      <option value="published">Publisert</option>
+                      <option value="draft">Utkast</option>
+                      <option value="published">Publiser</option>
                       <option value="archived">Ferdig</option>
                     </select>
                   </div>
 
-                  <div class="field">
-                    <label for="organizerType">Kategori</label>
-                    <select id="organizerType" class="select">
-                      <option value="internal">Campus</option>
-                      <option value="external">Ekstern</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="field">
-                  <label>Vis/skjul moduler</label>
-
-                  <div class="toggle-list">
-                    <label class="toggle">
-                      <input type="checkbox" id="showPriceCapacity" checked />
-                      <span>Pris & kapasitet</span>
-                    </label>
-
-                    <label class="toggle">
-                      <input type="checkbox" id="showCta" checked />
-                      <span>CTA (Meld deg på)</span>
-                    </label>
-
-                    <label class="toggle">
-                      <input type="checkbox" id="showProgram" checked />
-                      <span>Program</span>
-                    </label>
-
-                    <label class="toggle">
-                      <input type="checkbox" id="showShare" checked />
-                      <span>Deling</span>
-                    </label>
-                  </div>
                 </div>
 
                 <div class="field">
                   <label for="startAt">Dato</label>
-                  <input id="startAt" type="datetime-local" class="input" />
+                  <input id="startAt" type="date" class="input" />
                 </div>
 
                 <div class="grid2">
@@ -212,6 +211,33 @@
                   <div class="img-preview">
                     <img id="imagePreview" alt="" />
                   </div>
+                  <div class="preview-actions" id="removeImageWrap" style="display:none;">
+                    <button class="btn btn-ghost" type="button" id="btnRemoveImage">Fjern bilde</button>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label class="label">Logo (PNG)</label>
+                  <label class="image-drop" for="adminLogoFile">
+                    <input id="adminLogoFile" type="file" accept="image/png" />
+                    <span class="image-drop-icon" aria-hidden="true">+</span>
+                    <span class="image-drop-text">Klikk for å laste opp logo</span>
+                    <span class="image-drop-sub">Maks 2 MB. Hvit eller transparent bakgrunn.</span>
+                  </label>
+                  <p id="adminLogoError" class="hint is-error" style="display:none;"></p>
+                  <div class="logo-preview">
+                    <img id="logoPreview" alt="" />
+                  </div>
+                  <div class="preview-actions" id="removeLogoWrap" style="display:none;">
+                    <button class="btn btn-ghost" type="button" id="btnRemoveLogo">Fjern logo</button>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label class="toggle">
+                    <input type="checkbox" id="showPriceCapacity" checked />
+                    <span>Legg til pris og kapasitet</span>
+                  </label>
                 </div>
 
                 <div id="priceCapacityBlock">
@@ -228,8 +254,22 @@
                 </div>
 
                 <div class="field">
+                  <label class="toggle">
+                    <input type="checkbox" id="showRegistrationDeadline" checked />
+                    <span>Legg til påmeldingsfrist</span>
+                  </label>
+                </div>
+
+                <div class="field" id="registrationDeadlineBlock">
                   <label for="registrationDeadline">Påmeldingsfrist</label>
-                  <input id="registrationDeadline" type="datetime-local" class="input" />
+                  <input id="registrationDeadline" type="date" class="input" />
+                </div>
+
+                <div class="field">
+                  <label class="toggle">
+                    <input type="checkbox" id="showCta" checked />
+                    <span>Legg til påmelding</span>
+                  </label>
                 </div>
 
                 <div id="ctaBlock">
@@ -245,29 +285,51 @@
                   </div>
                 </div>
 
-                <div class="grid2">
+                <div class="field">
                   <div class="field">
                     <label for="organizerUrl">Arrangør-URL</label>
                     <input id="organizerUrl" class="input" placeholder="https://…" />
                   </div>
-
-                  <div class="field inline">
-                    <label class="inline">
-                      <input type="checkbox" id="calendarEnabled" />
-                      <span>Kalender</span>
-                    </label>
-
-                    <!-- ✅ Deling wrapper (kan skjules av toggle) -->
-                    <label class="inline" id="shareToggleBlock">
-                      <input type="checkbox" id="shareEnabled" />
-                      <span>Deling</span>
-                    </label>
-                  </div>
                 </div>
+
+                <div class="field">
+                  <label class="toggle">
+                    <input type="checkbox" id="calendarEnabled" />
+                    <span>Kalender</span>
+                  </label>
+                </div>
+
+                <div class="field">
+                  <label class="toggle">
+                    <input type="checkbox" id="shareEnabled" />
+                    <span>Deling</span>
+                  </label>
+                </div>
+
 
                 <div class="timestamps">
                   <div><span class="muted">Opprettet:</span> <span id="createdAtText">—</span></div>
                   <div><span class="muted">Oppdatert:</span> <span id="updatedAtText">—</span></div>
+                </div>
+
+                <div class="contact-box">
+                  <div class="card-title">Kontaktinfo (innsender)</div>
+                  <div class="field">
+                    <label for="contactName">Navn</label>
+                    <input id="contactName" class="input" />
+                  </div>
+                  <div class="field">
+                    <label for="contactEmail">E-post</label>
+                    <input id="contactEmail" class="input" />
+                  </div>
+                  <div class="field">
+                    <label for="contactPhone">Telefon</label>
+                    <input id="contactPhone" class="input" />
+                  </div>
+                  <div class="field">
+                    <label for="contactOrg">Organisasjon</label>
+                    <input id="contactOrg" class="input" />
+                  </div>
                 </div>
               </div>
             </aside>
@@ -278,8 +340,45 @@
       <div class="modal-footer">
         <button class="btn danger" id="btnDelete" type="button">Slett</button>
         <div class="spacer"></div>
+        <div id="shareLinksBlock" class="share-links" style="display:none;">
+          <a class="btn btn-ghost" id="shareFb" href="#" target="_blank" rel="noopener">Del på Facebook</a>
+          <a class="btn btn-ghost" id="shareLi" href="#" target="_blank" rel="noopener">Del på LinkedIn</a>
+        </div>
         <button class="btn" data-close="1" type="button">Avbryt</button>
         <button class="btn btn-primary" id="btnSave" type="button">Lagre</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mailModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-mail-close="1"></div>
+
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-label="E-postvarsler">
+      <div class="modal-header">
+        <div class="modal-title">
+          <h2>E‑postvarsler</h2>
+          <p class="muted">Legg inn e‑poster som skal få varsel ved nye innsendinger.</p>
+        </div>
+
+        <button class="icon-btn" data-mail-close="1" aria-label="Lukk">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="field">
+          <label for="mailRecipientsInput">Legg til mottaker</label>
+          <div class="recipient-add">
+            <input id="mailRecipientsInput" class="input" type="email" placeholder="navn@eksempel.no" />
+            <button class="btn" id="btnMailAdd" type="button">Legg til</button>
+          </div>
+        </div>
+        <div class="recipient-list" id="mailRecipientsList"></div>
+        <p class="hint" id="mailRecipientsHint"></p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn" data-mail-close="1" type="button">Avbryt</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="btnMailSave" type="button">Lagre</button>
       </div>
     </div>
   </div>

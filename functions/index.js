@@ -8,7 +8,8 @@
  */
 
 const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
+const {onRequest} = require("firebase-functions/v2/https");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
@@ -43,6 +44,8 @@ const ALLOWED_ORIGINS = new Set([
   "https://campusksu-event-applikasjon.web.app",
   "https://campusksu-event-applikasjon.firebaseapp.com",
   "https://campuskristiansund.squarespace.com",
+  "https://www.campusksu.no",
+  "https://campusksu.no",
 ]);
 
 function setCors(req, res) {
@@ -75,6 +78,28 @@ function toTimestamp(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
   return admin.firestore.Timestamp.fromDate(d);
+}
+
+function normalizeUrlMaybe(input) {
+  const value = String(input || "").trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  if (/^www\./i.test(value)) return `https://${value}`;
+  return value;
+}
+
+function isOlderThan(date, ms) {
+  if (!date || Number.isNaN(date.getTime())) return false;
+  return Date.now() - date.getTime() > ms;
+}
+
+function toDateKeyOslo(date) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Oslo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 function slugify(input) {
@@ -197,7 +222,14 @@ async function requireAdmin(req) {
   if (!isAdmin) throw new Error("Not authorized");
 }
 
-exports.events = onRequest(async (req, res) => {
+function normalizeEmailList(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((x) => String(x || "").trim().toLowerCase())
+    .filter(Boolean);
+}
+
+exports.events = onRequest({ region: "europe-west1" }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     setCors(req, res);
@@ -212,6 +244,7 @@ exports.events = onRequest(async (req, res) => {
 
   try {
     setCors(req, res);
+    res.set("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=300");
 
     // ?type=internal | external | all (eller ingenting)
     const type = (req.query.type || "all").toString().trim().toLowerCase();
@@ -248,6 +281,8 @@ exports.events = onRequest(async (req, res) => {
         organizerName: data.organizerName ?? "",
         imageUrl: data.imageUrl ?? null,
         imagePath: data.imagePath ?? null,
+        logoUrl: data.logoUrl ?? null,
+        logoPath: data.logoPath ?? null,
         startTime: data.startTime ?? "",
         endTime: data.endTime ?? "",
       };
@@ -261,7 +296,7 @@ exports.events = onRequest(async (req, res) => {
 });
 
 
-exports.event = onRequest(async (req, res) => {
+exports.event = onRequest({ region: "europe-west1" }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     setCors(req, res);
@@ -283,6 +318,7 @@ exports.event = onRequest(async (req, res) => {
 
   try {
     setCors(req, res);
+    res.set("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=300");
 
     const snap = await db
       .collection("events")
@@ -307,6 +343,7 @@ exports.event = onRequest(async (req, res) => {
         status: data.status ?? "",
 
         imageUrl: data.imageUrl ?? null,
+        logoUrl: data.logoUrl ?? null,
 
         startTime: data.startTime ?? "",
         endTime: data.endTime ?? "",
@@ -319,6 +356,8 @@ exports.event = onRequest(async (req, res) => {
         organizerName: data.organizerName ?? "",
         organizerUrl: data.organizerUrl ?? "",
 
+        contact: data.contact ?? null,
+
         price: typeof data.price === "number" ? data.price : null,
         capacity: typeof data.capacity === "number" ? data.capacity : null,
 
@@ -329,6 +368,11 @@ exports.event = onRequest(async (req, res) => {
 
         calendarEnabled: data.calendarEnabled === true,
         shareEnabled: data.shareEnabled === true,
+        showPriceCapacity: data.showPriceCapacity !== false,
+        showCta: data.showCta !== false,
+        showProgram: data.showProgram !== false,
+        showRegistrationDeadline: data.showRegistrationDeadline !== false,
+        showShare: data.showShare !== false,
 
         program: Array.isArray(data.program) ? data.program : [],
 
@@ -342,7 +386,7 @@ exports.event = onRequest(async (req, res) => {
   }
 });
 
-exports.adminEvents = onRequest(async (req, res) => {
+exports.adminEvents = onRequest({ region: "europe-west1" }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     setCors(req, res);
@@ -396,6 +440,9 @@ exports.adminEvents = onRequest(async (req, res) => {
         status: data.status ?? "draft",
 
         imageUrl: data.imageUrl ?? null,
+        imagePath: data.imagePath ?? null,
+        logoUrl: data.logoUrl ?? null,
+        logoPath: data.logoPath ?? null,
 
         startAt: toIso(data.startAt),
         startTime: data.startTime ?? "",
@@ -409,6 +456,8 @@ exports.adminEvents = onRequest(async (req, res) => {
         organizerName: data.organizerName ?? "",
         organizerUrl: data.organizerUrl ?? "",
 
+        contact: data.contact ?? null,
+
         price: typeof data.price === "number" ? data.price : null,
         capacity: typeof data.capacity === "number" ? data.capacity : null,
 
@@ -419,6 +468,11 @@ exports.adminEvents = onRequest(async (req, res) => {
 
         calendarEnabled: data.calendarEnabled === true,
         shareEnabled: data.shareEnabled === true,
+        showPriceCapacity: data.showPriceCapacity !== false,
+        showCta: data.showCta !== false,
+        showProgram: data.showProgram !== false,
+        showRegistrationDeadline: data.showRegistrationDeadline !== false,
+        showShare: data.showShare !== false,
 
         program: Array.isArray(data.program) ? data.program : [],
 
@@ -440,7 +494,7 @@ exports.adminEvents = onRequest(async (req, res) => {
   }
 });
 
-exports.adminUpdate = onRequest(async (req, res) => {
+exports.adminUpdate = onRequest({ region: "europe-west1" }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     setCors(req, res);
@@ -464,13 +518,16 @@ exports.adminUpdate = onRequest(async (req, res) => {
     const isNew = !id || id.startsWith("tmp_");
     const docRef = db.collection("events").doc(id);
     let prevImagePath = null;
+    let prevLogoPath = null;
     if (!isNew) {
       const snap = await docRef.get();
       prevImagePath = snap.exists ? snap.data()?.imagePath : null;
+      prevLogoPath = snap.exists ? snap.data()?.logoPath : null;
     }
 
     const organizerTypeRaw = String(body?.organizerType || "").trim().toLowerCase();
     const organizerType = organizerTypeRaw === "internal" ? "internal" : "external";
+    const organizerUrl = normalizeUrlMaybe(body?.organizerUrl);
 
     const title = String(body?.title || "").trim();
     const slugInput = String(body?.slug || "").trim();
@@ -497,7 +554,7 @@ exports.adminUpdate = onRequest(async (req, res) => {
       status: String(body?.status || "draft").trim().toLowerCase(),
       organizerType,
       organizerName: String(body?.organizerName || "").trim(),
-      organizerUrl: String(body?.organizerUrl || "").trim(),
+      organizerUrl,
 
       startAt: toTimestamp(body?.startAt),
       startTime: String(body?.startTime || "").trim(),
@@ -509,6 +566,8 @@ exports.adminUpdate = onRequest(async (req, res) => {
 
       imageUrl: body?.imageUrl ? String(body.imageUrl).trim() : null,
       imagePath: body?.imagePath ? String(body.imagePath).trim() : null,
+      logoUrl: body?.logoUrl ? String(body.logoUrl).trim() : null,
+      logoPath: body?.logoPath ? String(body.logoPath).trim() : null,
 
       price: Number.isFinite(priceVal) ? priceVal : null,
       capacity: Number.isFinite(capacityVal) ? capacityVal : null,
@@ -546,6 +605,14 @@ exports.adminUpdate = onRequest(async (req, res) => {
       }
     }
 
+    if (prevLogoPath && prevLogoPath !== eventData.logoPath) {
+      try {
+        await admin.storage().bucket().file(prevLogoPath).delete();
+      } catch (err) {
+        logger.warn("Failed to delete previous logo from storage", { id, prevLogoPath, err });
+      }
+    }
+
     return res.status(200).json({ ok: true, id });
   } catch (err) {
     logger.error("adminUpdate failed", err);
@@ -559,7 +626,7 @@ exports.adminUpdate = onRequest(async (req, res) => {
   }
 });
 
-exports.adminDelete = onRequest(async (req, res) => {
+exports.adminDelete = onRequest({ region: "europe-west1" }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     setCors(req, res);
@@ -586,12 +653,20 @@ exports.adminDelete = onRequest(async (req, res) => {
     const docRef = db.collection("events").doc(id);
     const snap = await docRef.get();
     const imagePath = snap.exists ? snap.data()?.imagePath : null;
+    const logoPath = snap.exists ? snap.data()?.logoPath : null;
 
     if (imagePath) {
       try {
         await admin.storage().bucket().file(imagePath).delete();
       } catch (err) {
         logger.warn("Failed to delete image from storage", { id, imagePath, err });
+      }
+    }
+    if (logoPath) {
+      try {
+        await admin.storage().bucket().file(logoPath).delete();
+      } catch (err) {
+        logger.warn("Failed to delete logo from storage", { id, logoPath, err });
       }
     }
 
@@ -609,7 +684,50 @@ exports.adminDelete = onRequest(async (req, res) => {
   }
 });
 
-exports.submitEvent = onRequest({ secrets: ["RECAPTCHA_SECRET"] }, async (req, res) => {
+exports.adminMailRecipients = onRequest({ region: "europe-west1" }, async (req, res) => {
+  if (req.method === "OPTIONS") {
+    setCors(req, res);
+    if (!isAllowedOrigin(req)) return res.status(403).send("Forbidden");
+    return res.status(204).send("");
+  }
+
+  setCors(req, res);
+
+  try {
+    await requireAdmin(req);
+
+    const docRef = db.collection("settings").doc("mailRecipients");
+
+    if (req.method === "GET") {
+      const snap = await docRef.get();
+      const data = snap.exists ? snap.data() : {};
+      const emails = normalizeEmailList(data?.emails || []);
+      return res.status(200).json({ emails });
+    }
+
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+
+    const body =
+      typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+    const emails = normalizeEmailList(body?.emails || []);
+
+    const invalid = emails.filter((e) => !isValidEmail(e));
+    if (invalid.length) {
+      return res.status(400).json({ error: "Ugyldig e-postadresse", invalid });
+    }
+
+    await docRef.set({ emails });
+    return res.status(200).json({ ok: true, emails });
+  } catch (err) {
+    logger.error("adminMailRecipients failed", err);
+    const message = err?.message ? String(err.message) : String(err);
+    return res.status(500).json({ error: "Failed to save recipients", details: message });
+  }
+});
+
+exports.submitEvent = onRequest({ region: "europe-west1", secrets: ["RECAPTCHA_SECRET"] }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     setCors(req, res);
@@ -644,6 +762,7 @@ exports.submitEvent = onRequest({ secrets: ["RECAPTCHA_SECRET"] }, async (req, r
     let content = String(body?.content || "").trim();
     const location = String(body?.location || "").trim();
     const organizerName = String(body?.organizerName || "").trim();
+    const organizerUrl = normalizeUrlMaybe(body?.organizerUrl);
 
     if (!contact.name || !contact.email || !title || !summary || !content || !location || !organizerName) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -651,7 +770,7 @@ exports.submitEvent = onRequest({ secrets: ["RECAPTCHA_SECRET"] }, async (req, r
     if (!isValidEmail(contact.email)) {
       return res.status(400).json({ error: "Ugyldig e-postadresse" });
     }
-    if (!isValidUrl(body?.organizerUrl)) {
+    if (!isValidUrl(organizerUrl)) {
       return res.status(400).json({ error: "Ugyldig arrangor-lenke" });
     }
     if (!isValidUrl(body?.ctaUrl)) {
@@ -700,10 +819,12 @@ exports.submitEvent = onRequest({ secrets: ["RECAPTCHA_SECRET"] }, async (req, r
 
       organizerName,
       organizerType,
-      organizerUrl: String(body?.organizerUrl || "").trim(),
+      organizerUrl,
 
       imageUrl: body?.imageUrl ? String(body.imageUrl).trim() : null,
       imagePath: body?.imagePath ? String(body.imagePath).trim() : null,
+      logoUrl: body?.logoUrl ? String(body.logoUrl).trim() : null,
+      logoPath: body?.logoPath ? String(body.logoPath).trim() : null,
 
       price: Number.isFinite(priceVal) ? priceVal : null,
       capacity: Number.isFinite(capacityVal) ? capacityVal : null,
@@ -718,15 +839,96 @@ exports.submitEvent = onRequest({ secrets: ["RECAPTCHA_SECRET"] }, async (req, r
       source: "public_submit",
       calendarEnabled: true,
       shareEnabled: true,
-      showPriceCapacity: true,
-      showProgram: true,
-      showCta: true,
+      showPriceCapacity: body?.showPriceCapacity === true,
+      showProgram: body?.showProgram === true,
+      showRegistrationDeadline: body?.showRegistrationDeadline === true,
+      showCta: body?.showCta === true,
       showShare: true,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     const docRef = await db.collection("events").add(eventData);
+
+    try {
+      const dateObj = eventData.startAt?.toDate?.();
+      const dateText = dateObj
+        ? dateObj.toLocaleDateString("nb-NO", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+            timeZone: "Europe/Oslo",
+          })
+        : "";
+      const timeText = eventData.startTime || "";
+      const whenText = [dateText, timeText].filter(Boolean).join(" ");
+
+      const recipientsSnap = await db
+        .collection("settings")
+        .doc("mailRecipients")
+        .get();
+      const recipients = normalizeEmailList(recipientsSnap.data()?.emails || []);
+      const toList = recipients.length ? recipients : ["bjornar@eggedosis.no"];
+
+      await db.collection("mail").add({
+        to: toList,
+        message: {
+          subject: "Nytt arrangement sendt inn til Campus Kristiansund",
+          text: [
+            `${eventData.organizerName || "En arrangør"} har lagt inn et nytt arrangement.`,
+            "",
+            `Tittel: ${eventData.title}`,
+            `Dato/tid: ${whenText || "-"}`,
+            `Sted: ${eventData.location || "-"}`,
+            `Arrangør: ${eventData.organizerName || "-"}`,
+            `Kontakt: ${eventData.contact.name} (${eventData.contact.email})`,
+            "",
+            "Arrangementet må godkjennes før det publiseres.",
+            "Administrer arrangementer: https://campusksu-event-applikasjon.web.app/",
+            "",
+            `ID: ${docRef.id}`,
+          ].join("\n"),
+          html: `
+            <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
+              <h2 style="margin:0 0 12px;">${eventData.organizerName || "Arrangør"} har lagt inn et nytt arrangement</h2>
+              <p style="margin:0 0 16px;">Arrangementet må godkjennes før det publiseres.</p>
+
+              <table style="width:100%;border-collapse:collapse;margin:0 0 16px;">
+                <tr>
+                  <td style="padding:6px 0;color:#6b7280;width:140px;">Tittel</td>
+                  <td style="padding:6px 0;">${eventData.title}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;color:#6b7280;">Dato/tid</td>
+                  <td style="padding:6px 0;">${whenText || "-"}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;color:#6b7280;">Sted</td>
+                  <td style="padding:6px 0;">${eventData.location || "-"}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;color:#6b7280;">Arrangør</td>
+                  <td style="padding:6px 0;">${eventData.organizerName || "-"}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;color:#6b7280;">Kontakt</td>
+                  <td style="padding:6px 0;">${eventData.contact.name} (${eventData.contact.email})</td>
+                </tr>
+              </table>
+
+              <a href="https://campusksu-event-applikasjon.web.app/"
+                 style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700;">
+                Administrer arrangementer
+              </a>
+
+              <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">ID: ${docRef.id}</p>
+            </div>
+          `,
+        },
+      });
+    } catch (mailErr) {
+      logger.warn("Email notification failed", mailErr);
+    }
 
     return res.status(200).json({ ok: true, id: docRef.id });
   } catch (err) {
@@ -735,3 +937,202 @@ exports.submitEvent = onRequest({ secrets: ["RECAPTCHA_SECRET"] }, async (req, r
     return res.status(500).json({ error: "Failed to submit event", details: message });
   }
 });
+
+exports.eventPage = onRequest({ region: "europe-west1" }, async (req, res) => {
+  const slug = (req.query.slug || "").toString().trim();
+  const fallbackImage =
+    "https://images.squarespace-cdn.com/content/v1/65fd81e70e15be5560cfb279/fc387fcf-4ca0-43bf-a18e-edac109636a6/Bannerbilde+3.png?format=2500w";
+
+  function escapeHtml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  if (!slug) {
+    res.set("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send(`<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>Arrangement</title>
+  </head>
+  <body>
+    <p>Mangler slug.</p>
+  </body>
+</html>`);
+  }
+
+  try {
+    const snap = await db
+      .collection("events")
+      .where("slug", "==", slug)
+      .where("status", "==", "published")
+      .limit(1)
+      .get();
+
+    if (snap.empty) {
+      res.set("Content-Type", "text/html; charset=utf-8");
+      return res.status(404).send(`<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>Fant ikke arrangement</title>
+  </head>
+  <body>
+    <p>Fant ikke arrangement.</p>
+  </body>
+</html>`);
+    }
+
+    const data = snap.docs[0].data() || {};
+    const title = data.title || "Arrangement";
+    const summary = data.summary || "";
+    const imageUrl = data.imageUrl || fallbackImage;
+    const pageUrl = `https://www.campusksu.no/event?slug=${encodeURIComponent(slug)}`;
+
+    res.set("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send(`<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(title)}</title>
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="${escapeHtml(title)}" />
+    <meta property="og:description" content="${escapeHtml(summary)}" />
+    <meta property="og:image" content="${escapeHtml(imageUrl)}" />
+    <meta property="og:url" content="${escapeHtml(pageUrl)}" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(title)}" />
+    <meta name="twitter:description" content="${escapeHtml(summary)}" />
+    <meta name="twitter:image" content="${escapeHtml(imageUrl)}" />
+  </head>
+  <body>
+    <p>${escapeHtml(title)}</p>
+    <p>${escapeHtml(summary)}</p>
+    <p><a href="${escapeHtml(pageUrl)}">Les mer</a></p>
+    <script>
+      if (!/facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|whatsapp/i.test(navigator.userAgent || "")) {
+        window.location.replace("${escapeHtml(pageUrl)}");
+      }
+    </script>
+  </body>
+</html>`);
+  } catch (err) {
+    logger.error("eventPage failed", err);
+    res.set("Content-Type", "text/html; charset=utf-8");
+    return res.status(500).send(`<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>Feil</title>
+  </head>
+  <body>
+    <p>Noe gikk galt.</p>
+  </body>
+</html>`);
+  }
+});
+
+exports.archivePastEvents = onSchedule(
+  { region: "europe-west1", schedule: "every day 00:30", timeZone: "Europe/Oslo" },
+  async () => {
+    const now = new Date();
+    const todayKey = toDateKeyOslo(now);
+    const nowTs = admin.firestore.Timestamp.fromDate(now);
+
+    const snap = await db
+      .collection("events")
+      .where("status", "==", "published")
+      .where("startAt", "<", nowTs)
+      .get();
+
+    if (snap.empty) {
+      logger.info("archivePastEvents: no events to archive");
+      return;
+    }
+
+    const toArchive = [];
+    snap.docs.forEach((doc) => {
+      const startAt = doc.data()?.startAt;
+      if (!startAt || typeof startAt.toDate !== "function") return;
+      const startKey = toDateKeyOslo(startAt.toDate());
+      if (startKey < todayKey) {
+        toArchive.push(doc.ref);
+      }
+    });
+
+    if (!toArchive.length) {
+      logger.info("archivePastEvents: no events past today");
+      return;
+    }
+
+    let updated = 0;
+    for (let i = 0; i < toArchive.length; i += 450) {
+      const batch = db.batch();
+      toArchive.slice(i, i + 450).forEach((ref) => {
+        batch.update(ref, {
+          status: "archived",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+      await batch.commit();
+      updated += Math.min(450, toArchive.length - i);
+    }
+
+    logger.info("archivePastEvents: archived events", { updated });
+  }
+);
+
+exports.cleanupOrphanedUploads = onSchedule(
+  { region: "europe-west1", schedule: "every day 03:30", timeZone: "Europe/Oslo" },
+  async () => {
+    const bucket = admin.storage().bucket();
+    const referenced = new Set();
+    const graceMs = 2 * 24 * 60 * 60 * 1000;
+
+    const snap = await db.collection("events").get();
+    snap.docs.forEach((doc) => {
+      const data = doc.data() || {};
+      if (data.imagePath) referenced.add(String(data.imagePath));
+      if (data.logoPath) referenced.add(String(data.logoPath));
+    });
+
+    let deleted = 0;
+
+    async function cleanupPrefix(prefix) {
+      let query = { prefix };
+      do {
+        const [files, nextQuery] = await bucket.getFiles(query);
+        for (const file of files) {
+          const name = file.name;
+          if (referenced.has(name)) continue;
+          try {
+            const [meta] = await file.getMetadata();
+            const created = meta?.timeCreated ? new Date(meta.timeCreated) : null;
+            if (!isOlderThan(created, graceMs)) continue;
+            await file.delete();
+            deleted += 1;
+          } catch (err) {
+            logger.warn("cleanupOrphanedUploads: failed to delete file", { name, err });
+          }
+        }
+        query = nextQuery || null;
+      } while (query && query.pageToken);
+    }
+
+    await cleanupPrefix("uploads/");
+    await cleanupPrefix("logos/");
+
+    logger.info("cleanupOrphanedUploads: done", { deleted, referenced: referenced.size });
+  }
+);

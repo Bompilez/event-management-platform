@@ -14,38 +14,72 @@
     <!-- INFO -->
     <header class="hero">
       <div class="hero-inner">
-        <h1>Send inn arrangement til Campus Kristiansund</h1>
+        <h1>Send inn arrangement</h1>
         <p class="lead">
-          Bruk skjemaet under for å sende inn et arrangement til publisering.
-          Innsendinger blir gjennomgått før de legges ut.
+          Skjemaet brukes til publisering på Campus Kristiansund.
+          Vi går gjennom innholdet før det legges ut.
         </p>
 
         <div class="info-grid">
           <div class="info-card">
             <h2>Hva skjer etter innsending?</h2>
             <ul>
-              <li>Arrangør kan bli kontaktet ved behov for avklaringer.</li>
-              <li>Arrangementet publiseres når det er godkjent.</li>
+              <li>Vi sjekker innholdet og kan ta kontakt ved spørsmål.</li>
+              <li>Arrangementet publiseres etter godkjent innhold av oss.</li>
             </ul>
           </div>
 
           <div class="info-card">
-            <h2>Tips</h2>
+            <h2>Kontakt oss</h2>
+            <legend>Ta kontakt ved spørsmål om innsending av skjemaet<br><br></legend>
             <ul>
-              <li>Skriv en kort og tydelig oppsummering.</li>
-              <li>Legg inn program dersom dere har tidspunkter.</li>
-              <li>Bilde: legg inn en lenke (opplasting kommer senere).</li>
+              <li>Roland Mauseth</li>
+              <li><a href="mailto:roland.mauseth@campusksu.no">roland.mauseth@campusksu.no</a></li>
+              <li><a href="tel:+4791721401">917 21 401</a></li>
             </ul>
           </div>
         </div>
       </div>
     </header>
 
+    <section class="contact-panel">
+      <div class="form-head contact-information">
+        <h2>Kontaktperson for innsending</h2>
+      </div>
+      <fieldset class="block contact-block">
+        <legend>Synlig kun for oss, er ikke den del av arrangement-innholdet</legend>
+
+        <div class="grid2">
+          <div class="field">
+            <label for="contactName">Navn *</label>
+            <input id="contactName" class="input" autocomplete="name" required form="submitForm" />
+          </div>
+
+          <div class="field">
+            <label for="contactEmail">E-post *</label>
+            <input id="contactEmail" class="input" type="email" autocomplete="email" required form="submitForm" />
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label for="contactPhone">Telefon *</label>
+            <input id="contactPhone" class="input" autocomplete="tel" required form="submitForm" />
+          </div>
+
+          <div class="field">
+            <label for="contactOrg">Organisasjon</label>
+            <input id="contactOrg" class="input" autocomplete="organization" form="submitForm" />
+          </div>
+        </div>
+      </fieldset>
+    </section>
+
     <!-- FORM -->
     <section class="form-wrap">
       <div class="form-head">
-        <h2>Skjema</h2>
-        <p class="muted">Felter merket med * er påkrevd.</p>
+        <h2>Arrangement innhold</h2>
+        <p class="muted">Felter merket med * må fylles ut.</p>
       </div>
 
       <form id="submitForm" class="form" novalidate>
@@ -54,34 +88,6 @@
           <label>Ikke fyll ut dette feltet</label>
           <input type="text" id="hpField" autocomplete="off" tabindex="-1" />
         </div>
-
-        <fieldset class="block">
-          <legend>Kontaktinfo (ansvarlig for innsending)</legend>
-
-          <div class="grid2">
-            <div class="field">
-              <label for="contactName">Navn *</label>
-              <input id="contactName" class="input" autocomplete="name" required />
-            </div>
-
-            <div class="field">
-              <label for="contactEmail">E-post *</label>
-              <input id="contactEmail" class="input" type="email" autocomplete="email" required />
-            </div>
-          </div>
-
-          <div class="grid2">
-            <div class="field">
-              <label for="contactPhone">Telefon</label>
-              <input id="contactPhone" class="input" autocomplete="tel" />
-            </div>
-
-            <div class="field">
-              <label for="contactOrg">Organisasjon / bedrift</label>
-              <input id="contactOrg" class="input" autocomplete="organization" />
-            </div>
-          </div>
-        </fieldset>
 
         <fieldset class="block">
           <legend>Arrangement</legend>
@@ -93,15 +99,17 @@
 
           <div class="field">
             <label for="summary">Oppsummering *</label>
+            <div class="hint">Kort oppsumering av arrangementet. Kan bli brukt på digitale skjermer, i kalendervarsling og informasjon på arrangementsiden</div>
             <textarea id="summary" class="textarea" rows="3" maxlength="150" required></textarea>
             <div class="field-max-word">
-              <small class="hint">Kort oppsumering av arrangemntet</small>
+              <small class="hint">Maks 150 tegn.</small>
               <small class="hint" id="summaryCounter">0 / 150 tegn</small>
             </div>
           </div>
 
           <div class="field">
-            <label for="content">Brødtekst *</label>
+            <label for="content">Arrangement tekst *</label>
+            <div class="hint">Vises på arrangementsiden. </div>
             <div class="quill-wrap">
               <div id="contentEditor" class="quill-editor"></div>
             </div>
@@ -111,7 +119,7 @@
           <div class="grid3">
             <div class="field">
               <label for="location">Sted *</label>
-              <input id="location" class="input" required />
+              <input id="location" class="input" value="Campus Kristiansund" required />
             </div>
             <div class="field">
               <label for="room">Rom</label>
@@ -144,57 +152,95 @@
           <div class="grid2">
             <div class="field">
               <label for="organizerName">Arrangørnavn *</label>
+              <div class="hint">Navn på arrangøren, f.eks. bedrift eller organisasjon.</div>
               <input id="organizerName" class="input" required />
             </div>
 
             <div class="field">
-              <label for="organizerType">Kategori</label>
-              <select id="organizerType" class="select">
-                <option value="external">Ekstern</option>
-                <option value="internal">Campus</option>
-              </select>
+              <label for="organizerUrl">Hjemmesideadresse</label>
+              <div class="hint">Vises som lenke på arrangementsiden.</div>
+              <input id="organizerUrl" class="input" placeholder="www.eksempel.no" />
             </div>
           </div>
 
-          <div class="field">
-            <label for="organizerUrl">Arrangør-lenke</label>
-            <input id="organizerUrl" class="input" placeholder="https://…" />
-          </div>
+        <div class="field">
+          <span class="label">Logo (PNG)</span>
+          <div class="hint">Vises sammen med arrangørnavn.</div>
+          <label class="image-drop image-drop--small" for="logoFile">
+            <input id="logoFile" type="file" accept="image/png" />
+            <span class="image-drop-icon" aria-hidden="true">+</span>
+            <span class="image-drop-text">Klikk for å velge logo</span>
+            <span class="image-drop-sub">Maks 2 MB. Hvit eller transparent bakgrunn.</span>
+          </label>
+        </div>
+
+        <div class="logo-preview">
+          <img id="logoPreview" alt="" />
+        </div>
+        <p id="logoError" style="color:#b91c1c;margin:8px 0 0;"></p>
+        <button class="btn btn-ghost" type="button" id="btnRemoveLogo" style="display:none;">Fjern logo</button>
 
         <div class="field">
           <span class="label">Bilde (jpg/png/webp)</span>
+          <div class="hint">Vises i oversikten og øverst på arrangementsiden.</div>
           <label class="image-drop" for="imageFile">
             <input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp" />
             <span class="image-drop-icon" aria-hidden="true">+</span>
             <span class="image-drop-text">Klikk for å velge bilde</span>
             <span class="image-drop-sub">Maks 4 MB. Bildet må være liggende format.</span>
           </label>
+          <details class="image-tip">
+            <summary>Se bildetips</summary>
+            <div class="image-tip-body">
+              <p>Et godt bilde er liggende og tydelig (ikke for smalt).</p>
+              <p>Bildet kuttes til 4:3-format, anbefalt oppløsning: 1200 × 900 px.</p>
+            </div>
+          </details>
+          <div class="image-preview-43" id="imagePreview43Wrap" style="display:none;">
+            <div class="image-preview-43-label">Pass på at viktig innhold er innenfor forhåndsvisningen. Bildet kuttes til 4:3.</div>
+            <div class="image-preview-43-frame">
+              <img id="imagePreview43" alt="">
+            </div>
+          </div>
+          <p id="imageError" style="color:#b91c1c;margin:8px 0 0;"></p>
+          <button class="btn btn-ghost" type="button" id="btnRemoveImage" style="display:none;">Fjern bilde</button>
         </div>
 
-        <img id="imagePreview" style="display:none;max-width:100%;border-radius:12px;margin-top:10px;" alt="">
-        <p id="imageError" style="color:#b91c1c;margin:8px 0 0;"></p>
 
+          <div class="field">
+            <label class="toggle">
+              <input type="checkbox" id="showPriceCapacity" />
+              <span>Legg til pris og kapasitet</span>
+            </label>
+          </div>
 
-          <div class="grid2">
+          <div class="grid2" id="priceCapacityBlock">
             <div class="field">
               <label for="price">Pris (kr)</label>
               <input id="price" type="number" class="input" placeholder="0" min="0" />
             </div>
 
             <div class="field">
-              <label for="capacity">Kapasitet</label>
+              <label for="capacity">Kapasitet, antall personer</label>
               <input id="capacity" type="number" class="input" placeholder="25" min="0" />
             </div>
           </div>
 
           <div class="field">
-            <label for="registrationDeadline">Påmeldingsfrist</label>
-            <input id="registrationDeadline" type="datetime-local" class="input" />
+            <label class="toggle">
+              <input type="checkbox" id="showCta" />
+              <span>Legg til påmelding (frist, knapp og lenke)</span>
+            </label>
           </div>
 
-          <div class="grid2">
+          <div class="field" id="registrationDeadlineBlock">
+            <label for="registrationDeadline">Påmeldingsfrist</label>
+            <input id="registrationDeadline" type="date" class="input" />
+          </div>
+
+          <div class="grid2" id="ctaBlock">
             <div class="field">
-              <label for="ctaText">Påmledings-knapp</label>
+              <label for="ctaText">Påmledings-knapp, valgfritt tekst</label>
               <input id="ctaText" class="input" placeholder="Meld deg på" />
             </div>
 
@@ -208,7 +254,14 @@
         <fieldset class="block">
           <legend>Program (valgfritt)</legend>
 
-          <div class="program-head">
+          <div class="field">
+            <label class="toggle">
+              <input type="checkbox" id="showProgram" />
+              <span>Legg til program</span>
+            </label>
+          </div>
+
+          <div class="program-head" id="programHead">
             <button type="button" class="btn" id="btnAddProgram">+ Legg til punkt</button>
           </div>
 
@@ -223,6 +276,14 @@
           </template>
         </fieldset>
 
+        <div class="field">
+          <label class="toggle terms-toggle" id="termsToggle">
+            <input type="checkbox" id="acceptTerms" />
+            <span>Jeg godkjenner vilkår for innsending</span>
+            <button class="link-btn" type="button" id="openTerms">Se vilkår</button>
+          </label>
+        </div>
+
         <div class="actions">
           <button class="btn" type="reset">Tøm</button>
           <button class="btn btn-primary" id="btnSubmit" type="submit">Send inn</button>
@@ -233,14 +294,38 @@
     </section>
   </main>
 
+  <div id="submitLoading" class="loading-overlay" aria-hidden="true">
+    <div class="loading-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <div>Laster...</div>
+    </div>
+  </div>
+
   <div id="successModal" class="modal" aria-hidden="true">
     <div class="modal-backdrop" data-close="1"></div>
     <div class="modal-panel" role="dialog" aria-modal="true" aria-label="Takk for innsending">
       <button class="icon-btn modal-close" data-close="1" aria-label="Lukk">✕</button>
       <div class="modal-body">
         <h2>Takk for innsendingen!</h2>
-        <p>Vi har mottatt arrangementet og gjennomgar det fortlopende.</p>
-        <p class="muted">Du kan lukke denne fanen na.</p>
+        <p>Vi har mottatt arrangementet og gjennomgår det fortløpende.</p>
+        <p class="muted">Du kan lukke denne fanen nå.</p>
+        <div class="modal-actions">
+          <button class="btn btn-primary" data-close="1">Lukk</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="termsModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-label="Vilkår for innsending">
+      <button class="icon-btn modal-close" data-close="1" aria-label="Lukk">✕</button>
+      <div class="modal-body">
+        <h2>Vilkår for innsending</h2>
+        <p>Vi lagrer informasjonen du sender inn for å publisere og administrere arrangementet.</p>
+        <p>Dette inkluderer kontaktinfo, tekst og eventuelle bilder/logo.</p>
+        <p>Opplysningene lagres så lenge arrangementet er aktivt og i etterkant for historikk/arkiv.</p>
+        <p class="muted">Spørsmål? Kontakt Roland Mauseth: <a href="mailto:roland.mauseth@campusksu.no">roland.mauseth@campusksu.no</a> / <a href="tel:+4791721401">917 21 401</a></p>
         <div class="modal-actions">
           <button class="btn btn-primary" data-close="1">Lukk</button>
         </div>
