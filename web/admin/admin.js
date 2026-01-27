@@ -51,6 +51,7 @@ let events = [];
 
 let activeFilter = "all";
 let activeId = null;
+let currentPublishedOnce = false;
 let mailRecipients = [];
 
 // ==== CONFIG ====
@@ -476,7 +477,13 @@ function closeModal() {
   modal.classList.remove("is-open");
   modal.setAttribute("aria-hidden", "true");
   activeId = null;
+  currentPublishedOnce = false;
   if (modalId) modalId.textContent = "";
+}
+
+function updateSlugLock() {
+  if (!fields.slug) return;
+  fields.slug.disabled = currentPublishedOnce;
 }
 
 function openMailModal() {
@@ -685,6 +692,7 @@ function loadIntoForm(id) {
 
   activeId = id;
   if (modalId) modalId.textContent = `ID: ${id}`;
+  currentPublishedOnce = e.publishedOnce === true || e.status === "published" || e.status === "archived";
 
   fields.title.value = e.title || "";
   fields.slug.value = e.slug || "";
@@ -755,6 +763,7 @@ function loadIntoForm(id) {
 
   applyVisibilityToggles();
   updateShareLinks();
+  updateSlugLock();
 
   clearProgramUI();
   sortProgram(e.program || []).forEach((p) => addProgramRow(p.time, p.text));
@@ -983,6 +992,11 @@ btnMailSave?.addEventListener("click", async () => {
 
 fields.shareEnabled?.addEventListener("change", () => {
   updateShareLinks();
+});
+fields.status?.addEventListener("change", () => {
+  const status = String(fields.status.value || "").toLowerCase();
+  if (status === "published") currentPublishedOnce = true;
+  updateSlugLock();
 });
 fields.slug?.addEventListener("input", () => {
   updateShareLinks();

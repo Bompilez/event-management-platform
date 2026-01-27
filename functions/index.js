@@ -438,6 +438,7 @@ exports.adminEvents = onRequest({ region: "europe-west1" }, async (req, res) => 
         summary: data.summary ?? "",
         content: data.content ?? "",
         status: data.status ?? "draft",
+        publishedOnce: data.publishedOnce === true || data.status === "published",
 
         imageUrl: data.imageUrl ?? null,
         imagePath: data.imagePath ?? null,
@@ -519,10 +520,16 @@ exports.adminUpdate = onRequest({ region: "europe-west1" }, async (req, res) => 
     const docRef = db.collection("events").doc(id);
     let prevImagePath = null;
     let prevLogoPath = null;
+    let prevSlug = null;
+    let prevPublishedOnce = false;
     if (!isNew) {
       const snap = await docRef.get();
       prevImagePath = snap.exists ? snap.data()?.imagePath : null;
       prevLogoPath = snap.exists ? snap.data()?.logoPath : null;
+      prevSlug = snap.exists ? snap.data()?.slug : null;
+      prevPublishedOnce =
+        snap.exists &&
+        (snap.data()?.publishedOnce === true || snap.data()?.status === "published");
     }
 
     const organizerTypeRaw = String(body?.organizerType || "").trim().toLowerCase();
@@ -588,6 +595,11 @@ exports.adminUpdate = onRequest({ region: "europe-west1" }, async (req, res) => 
 
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
+
+    eventData.publishedOnce = prevPublishedOnce || eventData.status === "published";
+    if (prevPublishedOnce && prevSlug) {
+      eventData.slug = String(prevSlug).trim();
+    }
 
     if (isNew) {
       eventData.createdAt = admin.firestore.FieldValue.serverTimestamp();

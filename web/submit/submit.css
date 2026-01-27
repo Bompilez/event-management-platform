@@ -30,6 +30,15 @@ body{
   padding:24px;
 }
 
+.logo {
+  margin-bottom: 2rem;
+  margin-top: 2rem;
+}
+
+.logo-head img {
+  width: 250px;
+}
+
 .hero{
   border:1px solid var(--border);
   border-radius:var(--radius);
