@@ -21,7 +21,6 @@
         <h1>Send inn arrangement</h1>
         <p class="lead">
           Skjemaet brukes til publisering av arrangementer på Campus Kristiansund.
-          Vi går gjennom innholdet før det legges ut.
         </p>
 
         <div class="info-grid">
@@ -37,9 +36,7 @@
             <h2>Kontakt oss</h2>
             <legend>Ta kontakt ved spørsmål om innsending av skjemaet<br><br></legend>
             <ul>
-              <li>Roland Mauseth</li>
-              <li><a href="mailto:roland.mauseth@campusksu.no">roland.mauseth@campusksu.no</a></li>
-              <li><a href="tel:+4791721401">917 21 401</a></li>
+              <li><a href="mailto:post@campusksu.no">post@campusksu.no</a></li>
             </ul>
           </div>
         </div>
@@ -49,13 +46,14 @@
     <section class="contact-panel">
       <div class="form-head contact-information">
         <h2>Kontaktperson for innsending</h2>
+        <p class="muted">Felter merket med * må fylles ut.</p>
       </div>
       <fieldset class="block contact-block">
         <legend>Synlig kun for oss, er ikke den del av arrangement-innholdet</legend>
 
         <div class="grid2">
           <div class="field">
-            <label for="contactName">Navn *</label>
+            <label for="contactName">Fullt navn *</label>
             <input id="contactName" class="input" autocomplete="name" required form="submitForm" />
           </div>
 
@@ -72,7 +70,7 @@
           </div>
 
           <div class="field">
-            <label for="contactOrg">Organisasjon</label>
+            <label for="contactOrg">Organisasjon (valgfritt)</label>
             <input id="contactOrg" class="input" autocomplete="organization" form="submitForm" />
           </div>
         </div>
@@ -94,7 +92,6 @@
         </div>
 
         <fieldset class="block">
-          <legend>Arrangement</legend>
 
           <div class="field">
             <label for="title">Tittel *</label>
@@ -102,17 +99,7 @@
           </div>
 
           <div class="field">
-            <label for="summary">Oppsummering *</label>
-            <div class="hint">Kort oppsumering av arrangementet. Kan bli brukt på digitale skjermer, i kalendervarsling og informasjon på arrangementsiden</div>
-            <textarea id="summary" class="textarea" rows="3" maxlength="150" required></textarea>
-            <div class="field-max-word">
-              <small class="hint">Maks 150 tegn.</small>
-              <small class="hint" id="summaryCounter">0 / 150 tegn</small>
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="content">Arrangement tekst *</label>
+            <label for="content">Beskrivelse *</label>
             <div class="hint">Vises på arrangementsiden. </div>
             <div class="quill-wrap">
               <div id="contentEditor" class="quill-editor"></div>
@@ -126,11 +113,11 @@
               <input id="location" class="input" value="Campus Kristiansund" required />
             </div>
             <div class="field">
-              <label for="room">Rom</label>
+              <label for="room">Rom (valgfritt)</label>
               <input id="room" class="input" />
             </div>
             <div class="field">
-              <label for="floor">Etasje</label>
+              <label for="floor">Etasje (valgfritt)</label>
               <input id="floor" class="input" />
             </div>
           </div>
@@ -147,7 +134,7 @@
                 <input id="startTime" class="input" placeholder="12:00" required />
               </div>
               <div class="field">
-                <label for="endTime">Til</label>
+                <label for="endTime">Til (valgfritt)</label>
                 <input id="endTime" class="input" placeholder="14:00" />
               </div>
             </div>
@@ -161,14 +148,14 @@
             </div>
 
             <div class="field">
-              <label for="organizerUrl">Hjemmesideadresse</label>
+              <label for="organizerUrl">Hjemmesideadresse (valgfritt)</label>
               <div class="hint">Vises som lenke på arrangementsiden.</div>
               <input id="organizerUrl" class="input" placeholder="www.eksempel.no" />
             </div>
           </div>
 
         <div class="field">
-          <span class="label">Logo (PNG)</span>
+          <span class="label">Logo (PNG) (valgfritt)</span>
           <div class="hint">Vises sammen med arrangørnavn.</div>
           <label class="image-drop image-drop--small" for="logoFile">
             <input id="logoFile" type="file" accept="image/png" />
@@ -185,7 +172,7 @@
         <button class="btn btn-ghost" type="button" id="btnRemoveLogo" style="display:none;">Fjern logo</button>
 
         <div class="field">
-          <span class="label">Bilde (jpg/png/webp)</span>
+          <span class="label">Bilde (jpg/png/webp) *</span>
           <div class="hint">Vises i oversikten og øverst på arrangementsiden.</div>
           <label class="image-drop" for="imageFile">
             <input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp" />
@@ -201,7 +188,7 @@
             </div>
           </details>
           <div class="image-preview-43" id="imagePreview43Wrap" style="display:none;">
-            <div class="image-preview-43-label">Pass på at viktig innhold er innenfor forhåndsvisningen. Bildet kuttes til 4:3.</div>
+            <div class="image-preview-43-label">Pass på at viktig innhold er innenfor forhåndsvisningen under. Bildet kuttes til 4:3.</div>
             <div class="image-preview-43-frame">
               <img id="imagePreview43" alt="">
             </div>
@@ -214,7 +201,7 @@
           <div class="field">
             <label class="toggle">
               <input type="checkbox" id="showPriceCapacity" />
-              <span>Legg til pris og kapasitet</span>
+              <span>Legg til pris og kapasitet (valgfritt)</span>
             </label>
           </div>
 
@@ -233,21 +220,11 @@
           <div class="field">
             <label class="toggle">
               <input type="checkbox" id="showCta" />
-              <span>Legg til påmelding (frist, knapp og lenke)</span>
+              <span>Legg til påmeldingslenke (valgfritt)</span>
             </label>
           </div>
 
-          <div class="field" id="registrationDeadlineBlock">
-            <label for="registrationDeadline">Påmeldingsfrist</label>
-            <input id="registrationDeadline" type="date" class="input" />
-          </div>
-
           <div class="grid2" id="ctaBlock">
-            <div class="field">
-              <label for="ctaText">Påmledings-knapp, valgfritt tekst</label>
-              <input id="ctaText" class="input" placeholder="Meld deg på" />
-            </div>
-
             <div class="field">
               <label for="ctaUrl">Påmledings-lenke</label>
               <input id="ctaUrl" class="input" placeholder="https://…" />
@@ -256,12 +233,12 @@
         </fieldset>
 
         <fieldset class="block">
-          <legend>Program (valgfritt)</legend>
+          <legend>Program</legend>
 
           <div class="field">
             <label class="toggle">
               <input type="checkbox" id="showProgram" />
-              <span>Legg til program</span>
+              <span>Legg til program (valgfritt)</span>
             </label>
           </div>
 
@@ -329,7 +306,7 @@
         <p>Vi lagrer informasjonen du sender inn for å publisere og administrere arrangementet.</p>
         <p>Dette inkluderer kontaktinfo, tekst og eventuelle bilder/logo.</p>
         <p>Opplysningene lagres så lenge arrangementet er aktivt og i etterkant for historikk/arkiv.</p>
-        <p class="muted">Spørsmål? Kontakt Roland Mauseth: <a href="mailto:roland.mauseth@campusksu.no">roland.mauseth@campusksu.no</a> / <a href="tel:+4791721401">917 21 401</a></p>
+        <p class="muted">Spørsmål? Kontakt Campus Kristiansund: <a href="mailto:post@campusksu.no">post@campusksu.no</a></p>
         <div class="modal-actions">
           <button class="btn btn-primary" data-close="1">Lukk</button>
         </div>

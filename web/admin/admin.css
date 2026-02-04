@@ -364,6 +364,30 @@ body {
 .modal-title h2 { margin: 0; font-size: 18px; }
 .modal-title p { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
 #modalId { word-break: break-all; }
+.lock-banner {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+.lock-banner.is-own {
+  background: #ecfdf3;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+.lock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
 
 .modal-body {
   padding: 16px;
@@ -640,3 +664,15 @@ label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px
 .toggle-list { display: grid; gap: 8px; margin-top: 8px; }
 .toggle { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text); }
 .toggle input { transform: translateY(1px); }
+.input.is-error{
+  border-color:#fb5c5c;
+  box-shadow:0 0 0 3px rgba(185,28,28,.15);
+}
+.quill-wrap.is-error .ql-container{
+  border-color:#fb4f4f;
+  box-shadow:0 0 0 3px rgba(185,28,28,.15);
+}
+.image-drop.is-error{
+  border-color:#fb5c5c;
+  box-shadow:0 0 0 3px rgba(185,28,28,.15);
+}

@@ -209,7 +209,7 @@ input {
   box-shadow:var(--focus);
 }
 .textarea{resize:vertical}
-.hint{display:block; margin-top:6px; color:var(--muted); font-size:12px}
+.hint{display:block; margin-top:6px; margin-bottom:6px; color: black; font-size:0.9rem;}
 .hint.is-error{color:var(--danger)}
 .textarea.is-error{border-color:#fb5c5c; box-shadow:0 0 0 3px rgba(185,28,28,.15)}
 .input.is-error{border-color:#fb5c5c; box-shadow:0 0 0 3px rgba(185,28,28,.15)}
@@ -259,6 +259,10 @@ input {
 .image-drop:focus-within{
   border-color:#cbd5e1;
   box-shadow:var(--focus);
+}
+.image-drop.is-error{
+  border-color:#fb5c5c;
+  box-shadow:0 0 0 3px rgba(185,28,28,.15);
 }
 .image-drop-icon{
   width:48px;

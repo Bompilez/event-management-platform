@@ -123,6 +123,17 @@ function sanitizeHtml(input) {
   return html;
 }
 
+function stripHtml(input) {
+  return String(input || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function makeExcerpt(html, maxLen = 200) {
+  const text = stripHtml(html);
+  if (!text) return "";
+  if (text.length <= maxLen) return text;
+  return `${text.slice(0, maxLen - 1).trim()}…`;
+}
+
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ""));
 }
@@ -151,6 +162,24 @@ function getClientIp(req) {
 
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX = 5;
+const LOCK_TTL_MS = 15 * 60 * 1000;
+
+function lockToIso(lock) {
+  if (!lock) return null;
+  return {
+    uid: lock.uid ?? "",
+    name: lock.name ?? "",
+    email: lock.email ?? "",
+    at: toIso(lock.at),
+  };
+}
+
+function isLockExpired(lock) {
+  if (!lock?.at) return true;
+  const d = typeof lock.at.toDate === "function" ? lock.at.toDate() : new Date(lock.at);
+  if (Number.isNaN(d.getTime())) return true;
+  return Date.now() - d.getTime() > LOCK_TTL_MS;
+}
 
 async function enforceRateLimit(req) {
   const ip = getClientIp(req);
@@ -208,6 +237,7 @@ async function requireAdmin(req) {
   const decoded = await admin.auth().verifyIdToken(match[1]);
   const email = String(decoded.email || "").trim().toLowerCase();
   const uid = String(decoded.uid || "").trim();
+  const name = String(decoded.name || decoded.email || "").trim();
 
   if (!email && !uid) throw new Error("Invalid auth token");
 
@@ -220,6 +250,7 @@ async function requireAdmin(req) {
 
   const isAdmin = (emailSnap && emailSnap.exists) || (uidSnap && uidSnap.exists);
   if (!isAdmin) throw new Error("Not authorized");
+  return { uid, email, name };
 }
 
 function normalizeEmailList(list) {
@@ -274,7 +305,6 @@ exports.events = onRequest({ region: "europe-west1" }, async (req, res) => {
         id: doc.id,
         title: data.title ?? "",
         slug: data.slug ?? "",
-        summary: data.summary ?? "",
         startAt: data.startAt?.toDate?.().toISOString?.() ?? null,
         location: data.location ?? "",
         organizerType: data.organizerType ?? "",
@@ -337,7 +367,6 @@ exports.event = onRequest({ region: "europe-west1" }, async (req, res) => {
         id: doc.id,
         title: data.title ?? "",
         slug: data.slug ?? "",
-        summary: data.summary ?? "",
         content: data.content ?? "",
         startAt: data.startAt?.toDate?.().toISOString?.() ?? null,
         status: data.status ?? "",
@@ -361,17 +390,14 @@ exports.event = onRequest({ region: "europe-west1" }, async (req, res) => {
         price: typeof data.price === "number" ? data.price : null,
         capacity: typeof data.capacity === "number" ? data.capacity : null,
 
-        ctaText: data.ctaText ?? "",
+        ctaText: data.showCta !== false ? (data.ctaText ?? "Meld deg på") : "",
         ctaUrl: data.ctaUrl ?? "",
-
-        registrationDeadline: data.registrationDeadline?.toDate?.().toISOString?.() ?? null,
 
         calendarEnabled: data.calendarEnabled === true,
         shareEnabled: data.shareEnabled === true,
         showPriceCapacity: data.showPriceCapacity !== false,
         showCta: data.showCta !== false,
         showProgram: data.showProgram !== false,
-        showRegistrationDeadline: data.showRegistrationDeadline !== false,
         showShare: data.showShare !== false,
 
         program: Array.isArray(data.program) ? data.program : [],
@@ -435,7 +461,6 @@ exports.adminEvents = onRequest({ region: "europe-west1" }, async (req, res) => 
         id: doc.id,
         title: data.title ?? "",
         slug: data.slug ?? "",
-        summary: data.summary ?? "",
         content: data.content ?? "",
         status: data.status ?? "draft",
         publishedOnce: data.publishedOnce === true || data.status === "published",
@@ -462,23 +487,21 @@ exports.adminEvents = onRequest({ region: "europe-west1" }, async (req, res) => 
         price: typeof data.price === "number" ? data.price : null,
         capacity: typeof data.capacity === "number" ? data.capacity : null,
 
-        ctaText: data.ctaText ?? "",
+        ctaText: data.showCta !== false ? (data.ctaText ?? "Meld deg på") : "",
         ctaUrl: data.ctaUrl ?? "",
-
-        registrationDeadline: toIso(data.registrationDeadline),
 
         calendarEnabled: data.calendarEnabled === true,
         shareEnabled: data.shareEnabled === true,
         showPriceCapacity: data.showPriceCapacity !== false,
         showCta: data.showCta !== false,
         showProgram: data.showProgram !== false,
-        showRegistrationDeadline: data.showRegistrationDeadline !== false,
         showShare: data.showShare !== false,
 
         program: Array.isArray(data.program) ? data.program : [],
 
         createdAt: toIso(data.createdAt),
         updatedAt: toIso(data.updatedAt),
+        editLock: lockToIso(data.editLock),
       };
     });
 
@@ -555,7 +578,6 @@ exports.adminUpdate = onRequest({ region: "europe-west1" }, async (req, res) => 
     const eventData = {
       title,
       slug,
-      summary: String(body?.summary || "").trim(),
       content: String(body?.content || "").trim(),
 
       status: String(body?.status || "draft").trim().toLowerCase(),
@@ -579,8 +601,7 @@ exports.adminUpdate = onRequest({ region: "europe-west1" }, async (req, res) => 
       price: Number.isFinite(priceVal) ? priceVal : null,
       capacity: Number.isFinite(capacityVal) ? capacityVal : null,
 
-      registrationDeadline: toTimestamp(body?.registrationDeadline),
-      ctaText: String(body?.ctaText || "").trim(),
+      ctaText: body?.showCta !== false ? "Meld deg på" : "",
       ctaUrl: String(body?.ctaUrl || "").trim(),
 
       calendarEnabled: body?.calendarEnabled === true,
@@ -635,6 +656,89 @@ exports.adminUpdate = onRequest({ region: "europe-west1" }, async (req, res) => 
       return res.status(403).json({ error: "Forbidden" });
     }
     return res.status(500).json({ error: "Failed to update event" });
+  }
+});
+
+exports.adminLock = onRequest({ region: "europe-west1" }, async (req, res) => {
+  if (req.method === "OPTIONS") {
+    setCors(req, res);
+    if (!isAllowedOrigin(req)) return res.status(403).send("Forbidden");
+    return res.status(204).send("");
+  }
+
+  if (req.method !== "POST") {
+    setCors(req, res);
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    setCors(req, res);
+    const adminUser = await requireAdmin(req);
+
+    const body =
+      typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+    const id = String(body?.id || "").trim();
+    const action = String(body?.action || "lock").trim().toLowerCase();
+
+    if (!id) return res.status(400).json({ error: "Missing id" });
+    if (!["lock", "unlock"].includes(action)) {
+      return res.status(400).json({ error: "Invalid action" });
+    }
+
+    const docRef = db.collection("events").doc(id);
+    let lockedByOther = null;
+
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(docRef);
+      if (!snap.exists) throw new Error("Not found");
+
+      const data = snap.data();
+      const lock = data?.editLock || null;
+      const expired = isLockExpired(lock);
+      const owned = !!lock?.uid && lock.uid === adminUser.uid;
+
+      if (action === "unlock") {
+        if (!lock || expired || owned) {
+          tx.update(docRef, { editLock: admin.firestore.FieldValue.delete() });
+        } else {
+          lockedByOther = lock;
+        }
+        return;
+      }
+
+      if (!lock || expired || owned) {
+        tx.update(docRef, {
+          editLock: {
+            uid: adminUser.uid,
+            email: adminUser.email || "",
+            name: adminUser.name || "",
+            at: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        });
+      } else {
+        lockedByOther = lock;
+      }
+    });
+
+    if (lockedByOther) {
+      return res.status(409).json({ ok: false, lock: lockToIso(lockedByOther) });
+    }
+
+    const updated = await docRef.get();
+    const lock = updated.exists ? lockToIso(updated.data()?.editLock) : null;
+    return res.status(200).json({ ok: true, lock });
+  } catch (err) {
+    logger.error("adminLock failed", err);
+    if (String(err?.message || "").toLowerCase().includes("auth")) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (String(err?.message || "").toLowerCase().includes("authorized")) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    if (String(err?.message || "").toLowerCase().includes("not found")) {
+      return res.status(404).json({ error: "Not found" });
+    }
+    return res.status(500).json({ error: "Failed to lock event" });
   }
 });
 
@@ -770,13 +874,12 @@ exports.submitEvent = onRequest({ region: "europe-west1", secrets: ["RECAPTCHA_S
 
     const title = String(body?.title || "").trim();
     const slug = slugify(title);
-    const summary = String(body?.summary || "").trim();
     let content = String(body?.content || "").trim();
     const location = String(body?.location || "").trim();
     const organizerName = String(body?.organizerName || "").trim();
     const organizerUrl = normalizeUrlMaybe(body?.organizerUrl);
 
-    if (!contact.name || !contact.email || !title || !summary || !content || !location || !organizerName) {
+    if (!contact.name || !contact.email || !title || !content || !location || !organizerName) {
       return res.status(400).json({ error: "Missing required fields" });
     }
     if (!isValidEmail(contact.email)) {
@@ -788,11 +891,13 @@ exports.submitEvent = onRequest({ region: "europe-west1", secrets: ["RECAPTCHA_S
     if (!isValidUrl(body?.ctaUrl)) {
       return res.status(400).json({ error: "Ugyldig paameldings-lenke" });
     }
+    if (body?.showCta === true && !String(body?.ctaUrl || "").trim()) {
+      return res.status(400).json({ error: "Mangler paameldings-lenke" });
+    }
 
     assertMaxLen(contact.name, 120, "Kontakt-navn");
     assertMaxLen(contact.email, 200, "Kontakt e-post");
     assertMaxLen(title, 140, "Tittel");
-    assertMaxLen(summary, 200, "Oppsummering");
     assertMaxLen(location, 120, "Sted");
     assertMaxLen(organizerName, 120, "Arrangornavn");
 
@@ -819,7 +924,6 @@ exports.submitEvent = onRequest({ region: "europe-west1", secrets: ["RECAPTCHA_S
 
       title,
       slug,
-      summary,
       content,
       location,
       room: String(body?.room || "").trim(),
@@ -841,8 +945,7 @@ exports.submitEvent = onRequest({ region: "europe-west1", secrets: ["RECAPTCHA_S
       price: Number.isFinite(priceVal) ? priceVal : null,
       capacity: Number.isFinite(capacityVal) ? capacityVal : null,
 
-      registrationDeadline: toTimestamp(body?.registrationDeadline),
-      ctaText: String(body?.ctaText || "").trim() || "Meld deg på",
+      ctaText: body?.showCta === true ? "Meld deg på" : "",
       ctaUrl: String(body?.ctaUrl || "").trim(),
 
       program,
@@ -853,7 +956,6 @@ exports.submitEvent = onRequest({ region: "europe-west1", secrets: ["RECAPTCHA_S
       shareEnabled: true,
       showPriceCapacity: body?.showPriceCapacity === true,
       showProgram: body?.showProgram === true,
-      showRegistrationDeadline: body?.showRegistrationDeadline === true,
       showCta: body?.showCta === true,
       showShare: true,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1004,7 +1106,7 @@ exports.eventPage = onRequest({ region: "europe-west1" }, async (req, res) => {
 
     const data = snap.docs[0].data() || {};
     const title = data.title || "Arrangement";
-    const summary = data.summary || "";
+    const summary = makeExcerpt(data.content || "");
     const imageUrl = data.imageUrl || fallbackImage;
     const pageUrl = `https://www.campusksu.no/event?slug=${encodeURIComponent(slug)}`;
 

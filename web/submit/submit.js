@@ -247,7 +247,6 @@ async function deleteUploadedLogo(path) {
   const programRows = $("#programRows");
   const programHead = $("#programHead");
   const priceCapacityBlock = $("#priceCapacityBlock");
-  const registrationDeadlineBlock = $("#registrationDeadlineBlock");
   const ctaBlock = $("#ctaBlock");
   const quillWrap = document.querySelector(".quill-wrap");
 
@@ -263,7 +262,6 @@ async function deleteUploadedLogo(path) {
     contactOrg: $("#contactOrg"),
 
     title: $("#title"),
-    summary: $("#summary"),
     content: $("#content"),
 
     location: $("#location"),
@@ -280,8 +278,6 @@ async function deleteUploadedLogo(path) {
     price: $("#price"),
     capacity: $("#capacity"),
 
-    registrationDeadline: $("#registrationDeadline"),
-    ctaText: $("#ctaText"),
     ctaUrl: $("#ctaUrl"),
 
     showPriceCapacity: $("#showPriceCapacity"),
@@ -314,26 +310,6 @@ async function deleteUploadedLogo(path) {
     if (quillWrap) quillWrap.classList.remove("is-error");
   });
 
-  const SUMMARY_MAX_CHARS = 150;
-  const summaryCounter = $("#summaryCounter");
-
-  function enforceSummaryCharLimit() {
-    const value = fields.summary.value;
-    if (value.length > SUMMARY_MAX_CHARS) {
-      fields.summary.value = value.slice(0, SUMMARY_MAX_CHARS);
-    }
-    updateSummaryCounter();
-  }
-
-  function updateSummaryCounter() {
-    if (!summaryCounter) return;
-    const charCount = fields.summary.value.length;
-    summaryCounter.textContent = `${charCount} / ${SUMMARY_MAX_CHARS} tegn`;
-    const isAtLimit = charCount >= SUMMARY_MAX_CHARS;
-    summaryCounter.classList.toggle("is-error", isAtLimit);
-    fields.summary.classList.toggle("is-error", isAtLimit);
-  }
-
   function getContentHtml() {
     let html = quill.root.innerHTML;
     if (html === "<p><br></p>") html = "";
@@ -351,6 +327,16 @@ async function deleteUploadedLogo(path) {
     el.classList.remove("is-error");
   }
 
+  function markImageInvalid() {
+    if (imageDropLabel) imageDropLabel.classList.add("is-error");
+    if (imageError) imageError.textContent = "Bilde er påkrevd.";
+  }
+
+  function clearImageInvalid() {
+    if (imageDropLabel) imageDropLabel.classList.remove("is-error");
+    if (imageError && imageError.textContent === "Bilde er påkrevd.") imageError.textContent = "";
+  }
+
   function markInvalidToggle(el) {
     if (!el) return;
     el.classList.add("is-error");
@@ -366,15 +352,15 @@ async function deleteUploadedLogo(path) {
       fields.contactName,
       fields.contactEmail,
       fields.title,
-      fields.summary,
       fields.location,
       fields.date,
       fields.startTime,
       fields.endTime,
       fields.organizerName,
       fields.organizerUrl,
-      fields.registrationDeadline,
+      fields.ctaUrl,
     ].forEach(clearInvalid);
+    clearImageInvalid();
     if (quillWrap) quillWrap.classList.remove("is-error");
     clearInvalidToggle(termsToggle);
   }
@@ -386,7 +372,6 @@ async function deleteUploadedLogo(path) {
   function validateRequiredFields() {
     let ok = true;
     const title = fields.title.value.trim();
-    const summary = fields.summary.value.trim();
     const content = getContentHtml().trim();
     const location = fields.location.value.trim();
     const date = fields.date.value;
@@ -395,12 +380,13 @@ async function deleteUploadedLogo(path) {
     const organizerName = fields.organizerName.value.trim();
     const organizerUrl = fields.organizerUrl.value.trim();
     const email = fields.contactEmail.value.trim();
+    const phone = fields.contactPhone.value.trim();
 
     if (!fields.contactName.value.trim()) { markInvalid(fields.contactName); ok = false; }
     if (!email) { markInvalid(fields.contactEmail); ok = false; }
     if (email && !isValidEmailLocal(email)) { markInvalid(fields.contactEmail); ok = false; }
+    if (!phone) { markInvalid(fields.contactPhone); ok = false; }
     if (!title) { markInvalid(fields.title); ok = false; }
-    if (!summary) { markInvalid(fields.summary); ok = false; }
     if (!content) { if (quillWrap) quillWrap.classList.add("is-error"); ok = false; }
     if (!location) { markInvalid(fields.location); ok = false; }
     if (!date) { markInvalid(fields.date); ok = false; }
@@ -411,8 +397,12 @@ async function deleteUploadedLogo(path) {
       markInvalid(fields.organizerUrl);
       ok = false;
     }
-    if (fields.showCta?.checked && !fields.registrationDeadline.value) {
-      markInvalid(fields.registrationDeadline);
+    if (!fileInput?.files?.[0]) {
+      markImageInvalid();
+      ok = false;
+    }
+    if (fields.showCta?.checked && !fields.ctaUrl.value.trim()) {
+      markInvalid(fields.ctaUrl);
       ok = false;
     }
     if (!fields.acceptTerms?.checked) {
@@ -424,28 +414,26 @@ async function deleteUploadedLogo(path) {
   }
 
   [
-    fields.contactName,
-    fields.contactEmail,
-    fields.title,
+      fields.contactName,
+      fields.contactEmail,
+      fields.contactPhone,
+      fields.title,
     fields.location,
     fields.date,
     fields.startTime,
     fields.endTime,
     fields.organizerName,
     fields.organizerUrl,
-    fields.registrationDeadline,
+    fields.ctaUrl,
   ].forEach((el) => {
     el?.addEventListener("input", () => clearInvalid(el));
   });
+  fileInput?.addEventListener("change", clearImageInvalid);
   fields.acceptTerms?.addEventListener("change", () => clearInvalidToggle(termsToggle));
   openTerms?.addEventListener("click", () => {
     if (!termsModal) return;
     termsModal.classList.add("is-open");
     termsModal.setAttribute("aria-hidden", "false");
-  });
-  fields.summary?.addEventListener("input", () => {
-    clearInvalid(fields.summary);
-    enforceSummaryCharLimit();
   });
 
   function showMessage(type, text) {
@@ -600,7 +588,6 @@ async function deleteUploadedLogo(path) {
 
   function collectPayload(imageMeta) {
     const title = fields.title.value.trim();
-    const summary = fields.summary.value.trim();
     const content = getContentHtml().trim();
     const location = fields.location.value.trim();
 
@@ -615,7 +602,6 @@ async function deleteUploadedLogo(path) {
     if (!fields.contactName.value.trim()) throw new Error("Kontakt-navn mangler.");
     if (!fields.contactEmail.value.trim()) throw new Error("Kontakt e-post mangler.");
     if (!title) throw new Error("Tittel mangler.");
-    if (!summary) throw new Error("Oppsummering mangler.");
     if (!content) throw new Error("Brødtekst mangler.");
     if (!location) throw new Error("Sted mangler.");
     if (!date) throw new Error("Dato mangler.");
@@ -643,7 +629,6 @@ async function deleteUploadedLogo(path) {
 
       // event fields
       title,
-      summary,
       content,
       location,
       room: fields.room.value.trim() || "",
@@ -665,11 +650,7 @@ async function deleteUploadedLogo(path) {
       price: showPriceCapacity && typeof priceVal === "number" && !Number.isNaN(priceVal) ? priceVal : null,
       capacity: showPriceCapacity && typeof capVal === "number" && !Number.isNaN(capVal) ? capVal : null,
 
-      registrationDeadline: showCta
-        ? dateInputToIso(fields.registrationDeadline.value)
-        : null,
-
-      ctaText: showCta ? (fields.ctaText.value.trim() || "Meld deg på") : "",
+      ctaText: showCta ? "Meld deg på" : "",
       ctaUrl: showCta ? fields.ctaUrl.value.trim() || "" : "",
 
       program: showProgram ? readProgramRowsSorted() : [],
@@ -677,7 +658,6 @@ async function deleteUploadedLogo(path) {
       // server bør sette status til draft uansett, men vi kan sende hint:
       showPriceCapacity,
       showProgram,
-      showRegistrationDeadline: showCta,
       showCta,
       status: "draft",
       source: "public_submit",
@@ -720,10 +700,7 @@ async function deleteUploadedLogo(path) {
   });
   fields.showCta?.addEventListener("change", () => {
     const show = fields.showCta.checked;
-    fields.ctaText.disabled = !show;
     fields.ctaUrl.disabled = !show;
-    fields.registrationDeadline.disabled = !show;
-    if (registrationDeadlineBlock) registrationDeadlineBlock.style.display = show ? "" : "none";
     if (ctaBlock) ctaBlock.style.display = show ? "" : "none";
   });
   programRows.addEventListener("change", (event) => {
@@ -735,7 +712,6 @@ async function deleteUploadedLogo(path) {
   form.addEventListener("reset", () => {
     clearMessage();
     programRows.innerHTML = "";
-    updateSummaryCounter();
     quill.setContents([]);
     if (fields.content) fields.content.value = "";
     if (preview43Wrap) preview43Wrap.style.display = "none";
@@ -758,7 +734,6 @@ async function deleteUploadedLogo(path) {
     e.preventDefault();
     clearMessage();
     clearAllInvalid();
-    enforceSummaryCharLimit();
     if (!validateRequiredFields()) {
       showMessage("error", "Sjekk feltene som er markert i rødt.");
       return;
@@ -811,9 +786,7 @@ async function deleteUploadedLogo(path) {
 
   const today = getTodayDateInput();
   if (fields.date) fields.date.min = today;
-  if (fields.registrationDeadline) fields.registrationDeadline.min = today;
 
-  updateSummaryCounter();
   if (fields.showProgram) fields.showProgram.dispatchEvent(new Event("change"));
   if (fields.showPriceCapacity) fields.showPriceCapacity.dispatchEvent(new Event("change"));
   if (fields.showCta) fields.showCta.dispatchEvent(new Event("change"));

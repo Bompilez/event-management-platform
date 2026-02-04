@@ -1,9 +1,18 @@
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { getAnonUid, app } from "../submit/firebase.js";
 
 const storage = getStorage(app);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 // ==== DEMO STATE ====
 const DEMO_EVENTS = [
@@ -11,7 +20,6 @@ const DEMO_EVENTS = [
     id: "S1el8UEOMmXHOrNNRcMR",
     title: "Åpen dag på Campus",
     slug: "apen-dag-pa-campus",
-    summary: "Bli kjent med studietilbudene våre og møte folk på campus.",
     content:
       "<p>Denne dagen kan du møte forelesere og studenter, få omvisning og stille spørsmål.</p>",
     status: "published",
@@ -29,7 +37,6 @@ const DEMO_EVENTS = [
     capacity: 25,
     ctaText: "Meld deg på",
     ctaUrl: "https://www.campusksu.no",
-    registrationDeadline: "2025-12-14T23:00:00.924Z",
     calendarEnabled: true,
     shareEnabled: true,
     program: [
@@ -53,6 +60,12 @@ let activeFilter = "all";
 let activeId = null;
 let currentPublishedOnce = false;
 let mailRecipients = [];
+let realtimeUnsub = null;
+let lockOwned = false;
+let lockRefreshTimer = null;
+
+const LOCK_TTL_MS = 15 * 60 * 1000;
+const LOCK_REFRESH_MS = 5 * 60 * 1000;
 
 // ==== CONFIG ====
 const API_BASE = "https://europe-west1-campusksu-event-applikasjon.cloudfunctions.net";
@@ -60,6 +73,7 @@ const ADMIN_EVENTS_URL = `${API_BASE}/adminEvents`;
 const ADMIN_UPDATE_URL = `${API_BASE}/adminUpdate`;
 const ADMIN_DELETE_URL = `${API_BASE}/adminDelete`;
 const ADMIN_RECIPIENTS_URL = `${API_BASE}/adminMailRecipients`;
+const ADMIN_LOCK_URL = `${API_BASE}/adminLock`;
 const FALLBACK_IMAGE =
   "data:image/svg+xml;charset=utf-8," +
   encodeURIComponent(`
@@ -96,6 +110,8 @@ const btnMailSave = $("#btnMailSave");
 const btnMailAdd = $("#btnMailAdd");
 const mailRecipientsList = $("#mailRecipientsList");
 const modalId = $("#modalId");
+const lockBanner = $("#lockBanner");
+const lockBannerText = $("#lockBannerText");
 
 const tplProgram = $("#tplProgramRow");
 const programRows = $("#programRows");
@@ -105,7 +121,6 @@ const uiToggles = {
   showPriceCapacity: $("#showPriceCapacity"),
   showCta: $("#showCta"),
   showProgram: $("#showProgram"),
-  showRegistrationDeadline: $("#showRegistrationDeadline"),
 };
 
 // Blocks som skal skjules/vises
@@ -113,13 +128,11 @@ const uiBlocks = {
   priceCapacityBlock: $("#priceCapacityBlock"),
   ctaBlock: $("#ctaBlock"),
   programBlock: $("#programBlock"),
-  registrationDeadlineBlock: $("#registrationDeadlineBlock"),
 };
 
 const fields = {
   title: $("#title"),
   slug: $("#slug"),
-  summary: $("#summary"),
   content: $("#content"), 
 
   status: $("#status"),
@@ -148,8 +161,6 @@ const fields = {
   price: $("#price"),
   capacity: $("#capacity"),
 
-  registrationDeadline: $("#registrationDeadline"),
-  ctaText: $("#ctaText"),
   ctaUrl: $("#ctaUrl"),
 
   calendarEnabled: $("#calendarEnabled"),
@@ -165,6 +176,7 @@ const fields = {
 
 const imageDropLabel = document.querySelector('label[for="adminImageFile"]');
 const logoDropLabel = document.querySelector('label[for="adminLogoFile"]');
+const quillWrap = document.querySelector(".quill-wrap");
 const shareLinksBlock = $("#shareLinksBlock");
 const shareFb = $("#shareFb");
 const shareLi = $("#shareLi");
@@ -291,6 +303,127 @@ async function authFetch(url, options = {}) {
   return fetch(url, { ...options, headers });
 }
 
+const isTempId = (id) => String(id || "").startsWith("tmp_");
+
+function isLockExpired(lock) {
+  if (!lock?.at) return true;
+  const d = new Date(lock.at);
+  if (Number.isNaN(d.getTime())) return true;
+  return Date.now() - d.getTime() > LOCK_TTL_MS;
+}
+
+function getLockDisplayName(lock) {
+  return lock?.name || lock?.email || "en annen admin";
+}
+
+function updateLockBanner(lock, owned) {
+  if (!lockBanner || !lockBannerText) return;
+  if (!lock) {
+    lockBanner.hidden = true;
+    lockBannerText.textContent = "";
+    lockBanner.classList.remove("is-warning", "is-own");
+    return;
+  }
+
+  if (owned) {
+    lockBannerText.textContent = "Du redigerer nå dette arrangementet.";
+    lockBanner.classList.remove("is-warning");
+    lockBanner.classList.add("is-own");
+  } else {
+    const who = getLockDisplayName(lock);
+    lockBannerText.textContent = `Redigeres av ${who} • ${formatDateTime(lock.at)}`;
+    lockBanner.classList.remove("is-own");
+    lockBanner.classList.add("is-warning");
+  }
+
+  lockBanner.hidden = false;
+}
+
+function syncActiveLockBanner() {
+  if (!activeId || isTempId(activeId)) {
+    updateLockBanner(null, false);
+    return;
+  }
+  const e = events.find((x) => x.id === activeId);
+  const lock = e?.editLock && !isLockExpired(e.editLock) ? e.editLock : null;
+  updateLockBanner(lock, lockOwned);
+}
+
+function getActiveLock() {
+  if (!activeId || isTempId(activeId)) return null;
+  const e = events.find((x) => x.id === activeId);
+  if (!e?.editLock) return null;
+  if (isLockExpired(e.editLock)) return null;
+  return e.editLock;
+}
+
+function stopLockRefresh() {
+  if (lockRefreshTimer) clearInterval(lockRefreshTimer);
+  lockRefreshTimer = null;
+}
+
+function startLockRefresh() {
+  stopLockRefresh();
+  lockRefreshTimer = setInterval(() => {
+    if (!lockOwned || !activeId || isTempId(activeId)) return;
+    void requestLock(activeId, "lock", { silent: true });
+  }, LOCK_REFRESH_MS);
+}
+
+async function requestLock(id, action, { silent = false } = {}) {
+  if (!currentUser) return { ok: false };
+  try {
+    const res = await authFetch(ADMIN_LOCK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true, lock: data?.lock || null };
+    if (res.status === 409) return { ok: false, lock: data?.lock || null, conflict: true };
+    if (!silent) console.error("Lock request failed:", data);
+    return { ok: false, lock: data?.lock || null };
+  } catch (err) {
+    if (!silent) console.error("Lock request error:", err);
+    return { ok: false };
+  }
+}
+
+async function acquireLockForActive() {
+  if (!activeId || isTempId(activeId)) {
+    updateLockBanner(null, false);
+    return;
+  }
+  const res = await requestLock(activeId, "lock");
+  if (res.ok) {
+    lockOwned = true;
+    if (res.lock) {
+      updateLockBanner(res.lock, true);
+    }
+    startLockRefresh();
+    return;
+  }
+  lockOwned = false;
+  stopLockRefresh();
+  if (res.lock) {
+    updateLockBanner(res.lock, false);
+  }
+}
+
+async function releaseLockForActive() {
+  if (!activeId || !lockOwned) {
+    updateLockBanner(null, false);
+    stopLockRefresh();
+    lockOwned = false;
+    return;
+  }
+  const id = activeId;
+  lockOwned = false;
+  stopLockRefresh();
+  await requestLock(id, "unlock", { silent: true });
+  updateLockBanner(null, false);
+}
+
 function showImageError(text) {
   if (!fields.imageError) return;
   fields.imageError.textContent = text || "";
@@ -301,6 +434,114 @@ function showLogoError(text) {
   if (!fields.logoError) return;
   fields.logoError.textContent = text || "";
   fields.logoError.style.display = text ? "block" : "none";
+}
+
+function markInvalid(el) {
+  if (!el) return;
+  el.classList.add("is-error");
+}
+
+function clearInvalid(el) {
+  if (!el) return;
+  el.classList.remove("is-error");
+}
+
+function markQuillInvalid() {
+  if (quillWrap) quillWrap.classList.add("is-error");
+}
+
+function clearQuillInvalid() {
+  if (quillWrap) quillWrap.classList.remove("is-error");
+}
+
+function markImageInvalid() {
+  if (imageDropLabel) imageDropLabel.classList.add("is-error");
+  showImageError("Bilde er påkrevd.");
+}
+
+function clearImageInvalid() {
+  if (imageDropLabel) imageDropLabel.classList.remove("is-error");
+  if (fields.imageError?.textContent === "Bilde er påkrevd.") showImageError("");
+}
+
+function isValidTimeLocal(t, required = false) {
+  if (!t && !required) return true;
+  return /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(t).trim());
+}
+
+function normalizeUrlMaybeLocal(raw) {
+  const value = String(raw || "").trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  if (/^www\./i.test(value)) return `https://${value}`;
+  return value;
+}
+
+function clearAllInvalid() {
+  [
+    fields.contactName,
+    fields.contactEmail,
+    fields.contactPhone,
+    fields.title,
+    fields.location,
+    fields.startAt,
+    fields.startTime,
+    fields.endTime,
+    fields.organizerName,
+    fields.organizerUrl,
+    fields.ctaUrl,
+  ].forEach(clearInvalid);
+  clearQuillInvalid();
+  clearImageInvalid();
+}
+
+function validateRequiredFields(requireAll) {
+  let ok = true;
+
+  const title = fields.title?.value.trim() || "";
+  const content = quill?.root?.innerHTML || "";
+  const location = fields.location?.value.trim() || "";
+  const date = fields.startAt?.value || "";
+  const startTime = fields.startTime?.value.trim() || "";
+  const endTime = fields.endTime?.value.trim() || "";
+  const organizerName = fields.organizerName?.value.trim() || "";
+  const organizerUrl = fields.organizerUrl?.value.trim() || "";
+  const email = fields.contactEmail?.value.trim() || "";
+  const phone = fields.contactPhone?.value.trim() || "";
+
+  if (requireAll) {
+    if (!fields.contactName?.value.trim()) { markInvalid(fields.contactName); ok = false; }
+    if (email && !isValidEmailLocal(email)) { markInvalid(fields.contactEmail); ok = false; }
+    if (!title) { markInvalid(fields.title); ok = false; }
+    if (!content || content === "<p><br></p>") { markQuillInvalid(); ok = false; }
+    if (!location) { markInvalid(fields.location); ok = false; }
+    if (!date) { markInvalid(fields.startAt); ok = false; }
+    if (!isValidTimeLocal(startTime, true)) { markInvalid(fields.startTime); ok = false; }
+    if (!isValidTimeLocal(endTime, false) && endTime) { markInvalid(fields.endTime); ok = false; }
+    if (!organizerName) { markInvalid(fields.organizerName); ok = false; }
+    if (organizerUrl && !/^https?:\/\//i.test(normalizeUrlMaybeLocal(organizerUrl))) {
+      markInvalid(fields.organizerUrl);
+      ok = false;
+    }
+
+    const hasImage = !!(currentImageUrl || fields.imageFile?.files?.[0]);
+    if (!hasImage) { markImageInvalid(); ok = false; }
+
+    if (uiToggles.showCta?.checked && !(fields.ctaUrl?.value || "").trim()) {
+      markInvalid(fields.ctaUrl);
+      ok = false;
+    }
+  } else {
+    if (email && !isValidEmailLocal(email)) { markInvalid(fields.contactEmail); ok = false; }
+    if (!isValidTimeLocal(startTime, false) && startTime) { markInvalid(fields.startTime); ok = false; }
+    if (!isValidTimeLocal(endTime, false) && endTime) { markInvalid(fields.endTime); ok = false; }
+    if (organizerUrl && !/^https?:\/\//i.test(normalizeUrlMaybeLocal(organizerUrl))) {
+      markInvalid(fields.organizerUrl);
+      ok = false;
+    }
+  }
+
+  return ok;
 }
 
 function isLandscape(file) {
@@ -429,6 +670,15 @@ const formatDateTime = (iso) => {
   });
 };
 
+const toIsoMaybe = (ts) => {
+  if (!ts) return null;
+  if (typeof ts.toDate === "function") return ts.toDate().toISOString();
+  if (ts instanceof Date) return ts.toISOString();
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+};
+
 const normalizeStatus = (s) => (s || "").toString().trim().toLowerCase();
 
 function statusClass(status) {
@@ -476,6 +726,7 @@ function openModal() {
 function closeModal() {
   modal.classList.remove("is-open");
   modal.setAttribute("aria-hidden", "true");
+  void releaseLockForActive();
   activeId = null;
   currentPublishedOnce = false;
   if (modalId) modalId.textContent = "";
@@ -539,7 +790,6 @@ function applyVisibilityToggles() {
   const showPrice = uiToggles.showPriceCapacity?.checked ?? true;
   const showCta = uiToggles.showCta?.checked ?? true;
   const showProgram = uiToggles.showProgram?.checked ?? true;
-  const showDeadline = uiToggles.showRegistrationDeadline?.checked ?? true;
 
   if (uiBlocks.priceCapacityBlock)
     uiBlocks.priceCapacityBlock.style.display = showPrice ? "" : "none";
@@ -547,16 +797,86 @@ function applyVisibilityToggles() {
     uiBlocks.ctaBlock.style.display = showCta ? "" : "none";
   if (uiBlocks.programBlock)
     uiBlocks.programBlock.style.display = showProgram ? "" : "none";
-  if (uiBlocks.registrationDeadlineBlock)
-    uiBlocks.registrationDeadlineBlock.style.display = showDeadline ? "" : "none";
-
-  if (!showDeadline && fields.registrationDeadline) fields.registrationDeadline.value = "";
 }
 
 Object.values(uiToggles).forEach((el) => {
   if (!el) return;
   el.addEventListener("change", applyVisibilityToggles);
 });
+
+function mapEventDoc(docSnap) {
+  const data = docSnap.data() || {};
+  return {
+    id: docSnap.id,
+    title: data.title ?? "",
+    slug: data.slug ?? "",
+    content: data.content ?? "",
+    status: data.status ?? "draft",
+    publishedOnce: data.publishedOnce === true || data.status === "published",
+
+    imageUrl: data.imageUrl ?? null,
+    imagePath: data.imagePath ?? null,
+    logoUrl: data.logoUrl ?? null,
+    logoPath: data.logoPath ?? null,
+
+    startAt: toIsoMaybe(data.startAt),
+    startTime: data.startTime ?? "",
+    endTime: data.endTime ?? "",
+
+    location: data.location ?? "",
+    room: data.room ?? "",
+    floor: data.floor ?? "",
+
+    organizerType: data.organizerType ?? "",
+    organizerName: data.organizerName ?? "",
+    organizerUrl: data.organizerUrl ?? "",
+
+    contact: data.contact ?? null,
+
+    price: typeof data.price === "number" ? data.price : null,
+    capacity: typeof data.capacity === "number" ? data.capacity : null,
+
+    ctaUrl: data.ctaUrl ?? "",
+
+    calendarEnabled: data.calendarEnabled === true,
+    shareEnabled: data.shareEnabled === true,
+    showPriceCapacity: data.showPriceCapacity !== false,
+    showCta: data.showCta !== false,
+    showProgram: data.showProgram !== false,
+    showShare: data.showShare !== false,
+
+    program: Array.isArray(data.program) ? data.program : [],
+
+    createdAt: toIsoMaybe(data.createdAt),
+    updatedAt: toIsoMaybe(data.updatedAt),
+    editLock: data.editLock
+      ? {
+          uid: data.editLock.uid ?? "",
+          name: data.editLock.name ?? "",
+          email: data.editLock.email ?? "",
+          at: toIsoMaybe(data.editLock.at),
+        }
+      : null,
+  };
+}
+
+function startRealtimeEvents() {
+  if (realtimeUnsub) realtimeUnsub();
+  const q = query(collection(db, "events"), orderBy("startAt", "asc"), limit(200));
+  realtimeUnsub = onSnapshot(
+    q,
+    (snap) => {
+      events = snap.docs.map(mapEventDoc);
+      renderList();
+      syncActiveLockBanner();
+    },
+    (err) => {
+      console.error("Realtime events failed:", err);
+      realtimeUnsub = null;
+      void loadEvents();
+    }
+  );
+}
 
 async function loadEvents() {
   try {
@@ -574,6 +894,7 @@ async function loadEvents() {
     if (Array.isArray(data)) {
       events = data;
       renderList();
+      syncActiveLockBanner();
       return;
     }
     throw new Error("Unexpected response shape");
@@ -690,13 +1011,16 @@ function loadIntoForm(id) {
   const e = events.find((x) => x.id === id);
   if (!e) return;
 
+  if (activeId && activeId !== id) {
+    void releaseLockForActive();
+  }
+  clearAllInvalid();
   activeId = id;
   if (modalId) modalId.textContent = `ID: ${id}`;
   currentPublishedOnce = e.publishedOnce === true || e.status === "published" || e.status === "archived";
 
   fields.title.value = e.title || "";
   fields.slug.value = e.slug || "";
-  fields.summary.value = e.summary || "";
 
   quill.setContents([]); // reset
   const html = (e.content || "").toString();
@@ -738,8 +1062,6 @@ function loadIntoForm(id) {
   fields.price.value = typeof e.price === "number" ? e.price : "";
   fields.capacity.value = typeof e.capacity === "number" ? e.capacity : "";
 
-  fields.registrationDeadline.value = toDateInput(e.registrationDeadline);
-  fields.ctaText.value = e.ctaText || "";
   fields.ctaUrl.value = e.ctaUrl || "";
 
   fields.calendarEnabled.checked = e.calendarEnabled === true;
@@ -758,12 +1080,12 @@ function loadIntoForm(id) {
   if (uiToggles.showCta) uiToggles.showCta.checked = e.showCta !== false;
   if (uiToggles.showProgram)
     uiToggles.showProgram.checked = e.showProgram !== false;
-  if (uiToggles.showRegistrationDeadline)
-    uiToggles.showRegistrationDeadline.checked = e.showRegistrationDeadline !== false;
 
   applyVisibilityToggles();
   updateShareLinks();
   updateSlugLock();
+  syncActiveLockBanner();
+  void acquireLockForActive();
 
   clearProgramUI();
   sortProgram(e.program || []).forEach((p) => addProgramRow(p.time, p.text));
@@ -780,12 +1102,10 @@ function readFormToObject() {
   const showCta = uiToggles.showCta?.checked ?? true;
   const showProgram = uiToggles.showProgram?.checked ?? true;
   const showShare = uiToggles.showShare?.checked ?? true;
-  const showRegistrationDeadline = uiToggles.showRegistrationDeadline?.checked ?? true;
 
   return {
     title: fields.title.value.trim(),
     slug: fields.slug.value.trim(),
-    summary: fields.summary.value.trim(),
     content: html,
 
     status: fields.status.value,
@@ -814,12 +1134,8 @@ function readFormToObject() {
       ? (fields.capacity.value === "" ? null : Number(fields.capacity.value))
       : null,
 
-    registrationDeadline: showRegistrationDeadline
-      ? fromDateInput(fields.registrationDeadline.value)
-      : null,
-
     // Hvis CTA skjules: blank ut
-    ctaText: showCta ? fields.ctaText.value.trim() : "",
+    ctaText: showCta ? "Meld deg på" : "",
     ctaUrl: showCta ? fields.ctaUrl.value.trim() : "",
 
     contact: {
@@ -840,7 +1156,6 @@ function readFormToObject() {
     showPriceCapacity,
     showCta,
     showProgram,
-    showRegistrationDeadline,
 
     updatedAt: new Date().toISOString(),
   };
@@ -878,7 +1193,6 @@ $("#btnNew")?.addEventListener("click", () => {
     id,
     title: "",
     slug: "",
-    summary: "",
     content: "",
     status: "draft",
     organizerName: "",
@@ -897,7 +1211,6 @@ $("#btnNew")?.addEventListener("click", () => {
     capacity: null,
     ctaText: "Meld deg på",
     ctaUrl: "",
-    registrationDeadline: null,
     calendarEnabled: true,
     shareEnabled: true,
     program: [],
@@ -905,8 +1218,8 @@ $("#btnNew")?.addEventListener("click", () => {
     updatedAt: now,
 
     // defaults
-    showPriceCapacity: true,
-    showCta: true,
+    showPriceCapacity: false,
+    showCta: false,
     showProgram: true,
     showShare: true,
   };
@@ -1002,9 +1315,26 @@ fields.slug?.addEventListener("input", () => {
   updateShareLinks();
 });
 
+[
+  fields.contactName,
+  fields.contactEmail,
+  fields.contactPhone,
+  fields.title,
+  fields.location,
+  fields.startAt,
+  fields.startTime,
+  fields.endTime,
+  fields.organizerName,
+  fields.organizerUrl,
+  fields.ctaUrl,
+].forEach((el) => {
+  el?.addEventListener("input", () => clearInvalid(el));
+});
+fields.imageFile?.addEventListener("change", clearImageInvalid);
+quill?.on?.("text-change", clearQuillInvalid);
+
 const today = getTodayDateInput();
 if (fields.startAt) fields.startAt.min = today;
-if (fields.registrationDeadline) fields.registrationDeadline.min = today;
 
 // Preview image
 fields.imageFile?.addEventListener("change", async () => {
@@ -1110,6 +1440,24 @@ $("#btnSave")?.addEventListener("click", async () => {
 
   const idx = events.findIndex((x) => x.id === activeId);
   if (idx === -1) return;
+
+  clearAllInvalid();
+  const requireAll = String(fields.status?.value || "").toLowerCase() === "published";
+  if (!validateRequiredFields(requireAll)) {
+    alert("Sjekk feltene som er markert i rødt.");
+    return;
+  }
+
+  const activeLock = getActiveLock();
+  if (activeLock && !lockOwned) {
+    const who = getLockDisplayName(activeLock);
+    const when = formatDateTime(activeLock.at);
+    const ok = confirm(
+      `Dette arrangementet redigeres av ${who} (${when}).\n` +
+      "Vil du likevel lagre dine endringer?"
+    );
+    if (!ok) return;
+  }
 
   const patch = readFormToObject();
 
@@ -1239,12 +1587,17 @@ applyVisibilityToggles();
 setAuthUi(false);
 
 onAuthStateChanged(auth, async (user) => {
+  if (!user && currentUser) {
+    await releaseLockForActive();
+  }
   currentUser = user || null;
   setAuthUi(!!user);
   if (user) {
-    await loadEvents();
+    startRealtimeEvents();
     return;
   }
+  if (realtimeUnsub) realtimeUnsub();
+  realtimeUnsub = null;
   events = [];
   if (listEl) listEl.innerHTML = "";
   if (emptyEl) emptyEl.hidden = true;
