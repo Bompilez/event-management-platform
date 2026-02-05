@@ -14,7 +14,7 @@ const storage = getStorage(app);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ==== DEMO STATE ====
+// ==== DEMO STATE (local sample for UI) ====
 const DEMO_EVENTS = [
   {
     id: "S1el8UEOMmXHOrNNRcMR",
@@ -67,7 +67,7 @@ let lockRefreshTimer = null;
 const LOCK_TTL_MS = 15 * 60 * 1000;
 const LOCK_REFRESH_MS = 5 * 60 * 1000;
 
-// ==== CONFIG ====
+// ==== CONFIG (API endpoints, defaults) ====
 const API_BASE = "https://europe-west1-campusksu-event-applikasjon.cloudfunctions.net";
 const ADMIN_EVENTS_URL = `${API_BASE}/adminEvents`;
 const ADMIN_UPDATE_URL = `${API_BASE}/adminUpdate`;
@@ -87,7 +87,7 @@ const FALLBACK_IMAGE =
   </text>
 </svg>`);
 
-// ==== ELEMENTS ====
+// ==== ELEMENTS (DOM refs) ====
 const $ = (q) => document.querySelector(q);
 
 const listEl = $("#list");
@@ -116,14 +116,14 @@ const lockBannerText = $("#lockBannerText");
 const tplProgram = $("#tplProgramRow");
 const programRows = $("#programRows");
 
-// Toggles (fra HTML vi la inn)
+// UI toggles (optional blocks)
 const uiToggles = {
   showPriceCapacity: $("#showPriceCapacity"),
   showCta: $("#showCta"),
   showProgram: $("#showProgram"),
 };
 
-// Blocks som skal skjules/vises
+// UI blocks that can be hidden/shown
 const uiBlocks = {
   priceCapacityBlock: $("#priceCapacityBlock"),
   ctaBlock: $("#ctaBlock"),
@@ -303,6 +303,7 @@ async function authFetch(url, options = {}) {
   return fetch(url, { ...options, headers });
 }
 
+// ==== LOCKING HELPERS (soft edit lock) ====
 const isTempId = (id) => String(id || "").startsWith("tmp_");
 
 function isLockExpired(lock) {
@@ -614,7 +615,7 @@ async function uploadAdminLogo(file) {
   return { url, path };
 }
 
-// ==== QUILL INIT ====
+// ==== QUILL INIT (rich text editor) ====
 const quill = new Quill("#contentEditor", {
   theme: "snow",
   modules: {
@@ -804,6 +805,7 @@ Object.values(uiToggles).forEach((el) => {
   el.addEventListener("change", applyVisibilityToggles);
 });
 
+// Map Firestore document to UI model
 function mapEventDoc(docSnap) {
   const data = docSnap.data() || {};
   return {
@@ -860,6 +862,7 @@ function mapEventDoc(docSnap) {
   };
 }
 
+// Start realtime updates for event list
 function startRealtimeEvents() {
   if (realtimeUnsub) realtimeUnsub();
   const q = query(collection(db, "events"), orderBy("startAt", "asc"), limit(200));
@@ -878,6 +881,7 @@ function startRealtimeEvents() {
   );
 }
 
+// One-shot load (fallback if realtime fails)
 async function loadEvents() {
   try {
     setLoading(true);

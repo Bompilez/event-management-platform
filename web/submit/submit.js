@@ -2,6 +2,7 @@
 import { getAnonUid, app } from "./firebase.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
 
+// ==== STORAGE (uploads) ====
 const storage = getStorage(app);
 
 const fileInput = document.getElementById("imageFile");
@@ -27,7 +28,7 @@ const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 const LOGO_MAX_MB = 2;
 const LOGO_ALLOWED = ["image/png"];
 
-// Enkel “liggende”-sjekk (bredde >= høyde)
+// Image validation helper (landscape check)
 function isLandscape(file) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -155,7 +156,7 @@ btnRemoveLogo?.addEventListener("click", () => {
   setLogoDropVisible(true);
 });
 
-// Kall denne når du skal lagre eventet
+// Upload image and return URL/path
 async function uploadSelectedImage() {
   const file = fileInput?.files?.[0];
   if (!file) return null;
@@ -182,6 +183,7 @@ async function uploadSelectedImage() {
   return { url, path };
 }
 
+// Upload logo and return URL/path
 async function uploadSelectedLogo() {
   const file = logoInput?.files?.[0];
   if (!file) return null;
@@ -223,6 +225,7 @@ async function deleteUploadedLogo(path) {
   }
 }
 
+// Ensure anon auth (required for storage path)
 (async () => {
   try {
     const uid = await getAnonUid();
@@ -234,6 +237,7 @@ async function deleteUploadedLogo(path) {
 
 
 
+// ==== FORM LOGIC (validation + submit) ====
 (() => {
   const $ = (q) => document.querySelector(q);
 
@@ -288,6 +292,7 @@ async function deleteUploadedLogo(path) {
   const termsToggle = $("#termsToggle");
   const openTerms = $("#openTerms");
 
+  // Rich text editor
   const quill = new Quill("#contentEditor", {
     theme: "snow",
     modules: {
@@ -369,6 +374,7 @@ async function deleteUploadedLogo(path) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ""));
   }
 
+  // UI validation (red borders)
   function validateRequiredFields() {
     let ok = true;
     const title = fields.title.value.trim();
@@ -586,6 +592,7 @@ async function deleteUploadedLogo(path) {
     return value;
   }
 
+  // Build payload for submit endpoint
   function collectPayload(imageMeta) {
     const title = fields.title.value.trim();
     const content = getContentHtml().trim();
@@ -666,6 +673,7 @@ async function deleteUploadedLogo(path) {
     return payload;
   }
 
+  // POST payload to server
   async function submitToServer(payload) {
     const res = await fetch(SUBMIT_URL, {
       method: "POST",

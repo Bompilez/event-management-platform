@@ -28,6 +28,7 @@ const db = admin.firestore();
 // functions should each use functions.runWith({ maxInstances: 10 }) instead.
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
+// Global function options (cost control)
 setGlobalOptions({ maxInstances: 10 });
 
 // Create and deploy your first functions
@@ -38,6 +39,7 @@ setGlobalOptions({ maxInstances: 10 });
 //   response.send("Hello from Firebase!");
 // });
 
+// Allowed web origins for CORS
 const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:5500",
   "http://localhost:5500",
@@ -48,6 +50,7 @@ const ALLOWED_ORIGINS = new Set([
   "https://campusksu.no",
 ]);
 
+// CORS helpers
 function setCors(req, res) {
   const origin = req.get("origin");
   if (origin && ALLOWED_ORIGINS.has(origin)) {
@@ -63,6 +66,7 @@ function isAllowedOrigin(req) {
   return !origin || ALLOWED_ORIGINS.has(origin);
 }
 
+// Date helpers
 function toIso(ts) {
   if (!ts) return null;
   if (typeof ts.toDate === "function") {
@@ -102,6 +106,7 @@ function toDateKeyOslo(date) {
   }).format(date);
 }
 
+// Slug + HTML sanitizing
 function slugify(input) {
   return String(input || "")
     .toLowerCase()
@@ -123,6 +128,7 @@ function sanitizeHtml(input) {
   return html;
 }
 
+// Short text for previews
 function stripHtml(input) {
   return String(input || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -132,6 +138,16 @@ function makeExcerpt(html, maxLen = 200) {
   if (!text) return "";
   if (text.length <= maxLen) return text;
   return `${text.slice(0, maxLen - 1).trim()}…`;
+}
+
+function isAnonymousUser(user) {
+  return (
+    user &&
+    Array.isArray(user.providerData) &&
+    user.providerData.length === 0 &&
+    !user.email &&
+    !user.phoneNumber
+  );
 }
 
 function isValidEmail(email) {
@@ -163,6 +179,7 @@ function getClientIp(req) {
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX = 5;
 const LOCK_TTL_MS = 15 * 60 * 1000;
+const ANON_CLEANUP_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 
 function lockToIso(lock) {
   if (!lock) return null;
@@ -229,6 +246,7 @@ async function verifyRecaptcha(req, token) {
   }
 }
 
+// Admin auth (matches admins collection)
 async function requireAdmin(req) {
   const authHeader = req.get("authorization") || "";
   const match = /^Bearer\s+(.+)$/i.exec(authHeader);
@@ -260,6 +278,7 @@ function normalizeEmailList(list) {
     .filter(Boolean);
 }
 
+// Public: list published events
 exports.events = onRequest({ region: "europe-west1" }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
@@ -326,6 +345,7 @@ exports.events = onRequest({ region: "europe-west1" }, async (req, res) => {
 });
 
 
+// Public: single event by slug
 exports.event = onRequest({ region: "europe-west1" }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
@@ -412,6 +432,7 @@ exports.event = onRequest({ region: "europe-west1" }, async (req, res) => {
   }
 });
 
+// Admin: list events (all statuses)
 exports.adminEvents = onRequest({ region: "europe-west1" }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
@@ -518,6 +539,7 @@ exports.adminEvents = onRequest({ region: "europe-west1" }, async (req, res) => 
   }
 });
 
+// Admin: create/update event
 exports.adminUpdate = onRequest({ region: "europe-west1" }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
@@ -659,6 +681,7 @@ exports.adminUpdate = onRequest({ region: "europe-west1" }, async (req, res) => 
   }
 });
 
+// Admin: soft edit lock
 exports.adminLock = onRequest({ region: "europe-west1" }, async (req, res) => {
   if (req.method === "OPTIONS") {
     setCors(req, res);
@@ -742,6 +765,7 @@ exports.adminLock = onRequest({ region: "europe-west1" }, async (req, res) => {
   }
 });
 
+// Admin: delete event
 exports.adminDelete = onRequest({ region: "europe-west1" }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
@@ -800,6 +824,7 @@ exports.adminDelete = onRequest({ region: "europe-west1" }, async (req, res) => 
   }
 });
 
+// Admin: email recipients settings
 exports.adminMailRecipients = onRequest({ region: "europe-west1" }, async (req, res) => {
   if (req.method === "OPTIONS") {
     setCors(req, res);
@@ -843,6 +868,41 @@ exports.adminMailRecipients = onRequest({ region: "europe-west1" }, async (req, 
   }
 });
 
+// Scheduled: delete old anonymous users
+exports.cleanupAnonymousUsers = onSchedule({ region: "europe-west1", schedule: "every 72 hours" }, async () => {
+  const cutoff = Date.now() - ANON_CLEANUP_AGE_MS;
+  let nextPageToken;
+  const uidsToDelete = [];
+
+  do {
+    const listResult = await admin.auth().listUsers(1000, nextPageToken);
+    listResult.users.forEach((user) => {
+      if (!isAnonymousUser(user)) return;
+      const createdAt = new Date(user.metadata.creationTime).getTime();
+      if (!Number.isNaN(createdAt) && createdAt < cutoff) {
+        uidsToDelete.push(user.uid);
+      }
+    });
+    nextPageToken = listResult.pageToken;
+  } while (nextPageToken);
+
+  if (!uidsToDelete.length) {
+    logger.info("cleanupAnonymousUsers: nothing to delete");
+    return;
+  }
+
+  for (let i = 0; i < uidsToDelete.length; i += 1000) {
+    const batch = uidsToDelete.slice(i, i + 1000);
+    const res = await admin.auth().deleteUsers(batch);
+    logger.info("cleanupAnonymousUsers: deleted batch", {
+      requested: batch.length,
+      successCount: res.successCount,
+      failureCount: res.failureCount,
+    });
+  }
+});
+
+// Public: submit event (draft)
 exports.submitEvent = onRequest({ region: "europe-west1", secrets: ["RECAPTCHA_SECRET"] }, async (req, res) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
@@ -1052,6 +1112,7 @@ exports.submitEvent = onRequest({ region: "europe-west1", secrets: ["RECAPTCHA_S
   }
 });
 
+// Public: HTML page for sharing bots
 exports.eventPage = onRequest({ region: "europe-west1" }, async (req, res) => {
   const slug = (req.query.slug || "").toString().trim();
   const fallbackImage =
