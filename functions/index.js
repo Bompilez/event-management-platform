@@ -180,6 +180,26 @@ const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX = 5;
 const LOCK_TTL_MS = 15 * 60 * 1000;
 const ANON_CLEANUP_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+const EVENTS_CACHE_TTL_MS = 60 * 1000;
+
+const eventsCache = new Map();
+
+function getEventsCache(key) {
+  const cached = eventsCache.get(key);
+  if (!cached) return null;
+  if (Date.now() > cached.expiresAt) {
+    eventsCache.delete(key);
+    return null;
+  }
+  return cached.data;
+}
+
+function setEventsCache(key, data) {
+  eventsCache.set(key, {
+    data,
+    expiresAt: Date.now() + EVENTS_CACHE_TTL_MS,
+  });
+}
 
 function lockToIso(lock) {
   if (!lock) return null;
@@ -304,6 +324,13 @@ exports.events = onRequest({ region: "europe-west1" }, async (req, res) => {
       return res.status(400).json({ error: "Invalid type. Use all|internal|external" });
     }
 
+    const cacheKey = `events:${type}`;
+    const cached = getEventsCache(cacheKey);
+    if (cached) {
+      res.set("X-Cache", "HIT");
+      return res.json(cached);
+    }
+
     let q = db
       .collection("events")
       .where("status", "==", "published");
@@ -337,6 +364,8 @@ exports.events = onRequest({ region: "europe-west1" }, async (req, res) => {
       };
     });
 
+    setEventsCache(cacheKey, events);
+    res.set("X-Cache", "MISS");
     return res.json(events);
   } catch (err) {
     console.error(err);
